@@ -2,6 +2,15 @@
 
 A compact Windows tray widget for Codex and Claude Code usage.
 
+## Provider-fix preview branch
+
+This branch (`fix/provider-security-and-freshness`) builds the provider library from
+`source/Core/` and fixes the two inherited risks. See [provider-fixes.md](provider-fixes.md)
+for test evidence and promotion precautions. All launches here are isolated previews;
+the installed main application and its startup entry are unchanged. Unlike main,
+the preview deliberately does not rotate real Claude OAuth tokens while main is running.
+Publish this branch to `publish-provider-fixes/`, not over the installed executable.
+
 - Tray: outlined vertical weekly meters, black Codex left and orange Claude right, no numerals or backing tile.
 - Popup: 284px-wide circular usage meters, fully opaque, matching the Windows light/dark app theme.
 - Click the tray icon to toggle the popup; F5 or its refresh button updates usage; Escape dismisses it.
@@ -19,7 +28,7 @@ dotnet publish source/Tray/CodexBarWin.csproj -c Release -o publish
 ./scripts/Test-Lifecycle.ps1 -Executable ./publish/CodexBarWin.exe
 ```
 
-The test script checks formatting, a warning-free Release build, and 133 assertions.
+The test script checks formatting, a warning-free Release build, and 174 assertions.
 Tests cover weekly-only selection, native tray sizes, provider colors, transparency,
 popup/theme states, error bounds, refresh behavior, settings persistence, network policy,
 startup-path validation, cached-data labeling, and DPI-aware settings layout.
@@ -50,15 +59,16 @@ Codex local fallbacks can still be read when network is disabled.
 
 - `source/Tray/CodexBarWin.Tray/`: native popup, tray rendering, refresh lifecycle, settings,
   startup registration, provider construction, caching, and diagnostics.
-- `bundle/CodexBarWin.Core.dll`: original provider library, retained unchanged. Its static
-  review limitations and inherited risks are documented in the review, not silently rewritten.
+- `source/Core/`: source-built providers, protected Claude cache, and usage provenance.
+- `bundle/CodexBarWin.Core.dll`: original provider library, retained unchanged for rollback;
+  this branch no longer references it.
 - `tests/WidgetTests.csproj`: native Windows regression tests; test artifacts are ignored by Git.
 - `scripts/`: reproducible checks and graceful-shutdown smoke test.
 - `design/` and `design-qa.md`: supplied reference and reference-comparison evidence.
 
 ## History and rollback
 
-Only `main` remains active. Merged design branches and superseded previews are archived
+The prior cleanup left only `main`; this task adds the provider-fix branch. Merged design branches and superseded previews are archived
 under the task's `outputs/archive/pre-cleanup-2026-10-17/`. The pre-cleanup Git bundle retains
 all design branch names and commits; `git bundle list-heads PATH` lists them. The known-working
 pre-cleanup executable is preserved there too. No authentication files or user documents were removed.

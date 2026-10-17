@@ -27,7 +27,7 @@ internal sealed class TrayAppContext : ApplicationContext
         _preview = preview;
         _settings = SettingsStore.Load();
         _settings.LaunchAtLogin = StartupRegistration.IsEnabled();
-        _registry = ProviderFactory.Create(_settings);
+        _registry = ProviderFactory.Create(_settings, _preview);
         _popup = new PopupForm(RequestRefresh);
         if (open) _popup.OpenWhenReady();
         _ = _popup.Handle; // Install the WinForms synchronization context before refreshing.
@@ -72,7 +72,7 @@ internal sealed class TrayAppContext : ApplicationContext
             return;
         }
         _settings = updated.Clone();
-        _registry = ProviderFactory.Create(_settings);
+        _registry = ProviderFactory.Create(_settings, _preview);
         _settingsVersion++;
         _cache.Clear();
         _timer.Interval = _settings.ClampedIntervalSeconds() * 1000;
@@ -115,7 +115,7 @@ internal sealed class TrayAppContext : ApplicationContext
         _tray.Icon = TrayIconRenderer.Build(state, out _iconHandle);
         if (oldHandle != 0) oldIcon?.Dispose();
         TrayIconRenderer.Destroy(oldHandle);
-        string tooltip = (_preview ? "PREVIEW · " : "") + state.Tooltip + (_cache.IsStale ? " · cached" : "");
+        string tooltip = (_preview ? "PREVIEW · " : "") + state.Tooltip + UsagePresentation.TooltipSuffix(snapshots);
         _tray.Text = tooltip.Length > 63 ? tooltip[..63] : tooltip;
     }
 

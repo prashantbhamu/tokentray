@@ -2,6 +2,7 @@
 **/obj/
 publish/
 publish-circular/
+publish-provider-fixes/
 test-results/
 test-results*/
 artifacts/

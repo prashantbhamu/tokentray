@@ -21,7 +21,9 @@ internal sealed class UsageCache
             _lastGood.TryGetValue(snapshot.ProviderId, out var cached))
         {
             _stale.Add(snapshot.ProviderId);
-            return cached with { Message = $"{snapshot.Message ?? "Temporarily unavailable"} · showing {cached.FetchedAt.ToLocalTime():HH:mm}" };
+            var asOf = cached.SourceUpdatedAt ?? (cached.Source is UsageDataSource.Live or UsageDataSource.Unknown ? cached.FetchedAt : null);
+            string time = asOf.HasValue ? asOf.Value.ToLocalTime().ToString("dd MMM HH:mm") : "time unknown";
+            return cached with { Message = $"{snapshot.Message ?? "Temporarily unavailable"} · showing {time}", Source = UsageDataSource.Cached, SourceUpdatedAt = asOf };
         }
         _lastGood.Remove(snapshot.ProviderId);
         return snapshot;

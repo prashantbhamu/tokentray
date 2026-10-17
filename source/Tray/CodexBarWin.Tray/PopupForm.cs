@@ -114,7 +114,7 @@ internal sealed class PopupForm : Form
     {
         _snapshots = snapshots;
         SetRefreshing(refreshing);
-        _updated = $"Updated {DateTime.Now:HH:mm} · usage shown";
+        _updated = UsagePresentation.Footer(snapshots, DateTime.Now.ToString("HH:mm"));
         if (IsHandleCreated) MeasureAndResize();
         Invalidate();
         if (_initialOpen) { _initialOpen = false; ShowNearTray(); }

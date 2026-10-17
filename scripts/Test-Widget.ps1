@@ -8,6 +8,8 @@ if (-not $DotNet) {
 if (-not (Test-Path -LiteralPath $DotNet)) { throw 'Install .NET 8 SDK or pass -DotNet with its full path.' }
 Push-Location $repo
 try {
+    & $DotNet format whitespace 'source\Core\CodexBarWin.Core.csproj' --no-restore --verify-no-changes --verbosity quiet
+    if ($LASTEXITCODE) { throw 'Provider source formatting check failed.' }
     & $DotNet format whitespace 'source\Tray\CodexBarWin.csproj' --no-restore --verify-no-changes --verbosity quiet
     if ($LASTEXITCODE) { throw 'Source formatting check failed.' }
     & $DotNet build 'source\Tray\CodexBarWin.csproj' -c Release --nologo

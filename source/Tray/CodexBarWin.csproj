@@ -10,7 +10,6 @@
  </PropertyGroup>
  <ItemGroup>
   <PackageReference Include="FontAwesome.Sharp" Version="6.6.0" />
-  <Reference Include="CodexBarWin.Core"><HintPath>../../bundle/CodexBarWin.Core.dll</HintPath></Reference>
-  <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.30" />
+  <ProjectReference Include="../Core/CodexBarWin.Core.csproj" />
  </ItemGroup>
 </Project>

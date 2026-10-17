@@ -13,7 +13,7 @@ try {
     $quit = $null
     $watch = [System.Diagnostics.Stopwatch]::StartNew()
     while (-not $quit -and $watch.Elapsed.TotalSeconds -lt 10) {
-        try { $quit = [System.Threading.EventWaitHandle]::OpenExisting('Local\CodexBarWin.CircularPopupPreview.Quit') }
+        try { $quit = [System.Threading.EventWaitHandle]::OpenExisting('Local\CodexBarWin.ProviderFixPreview.Quit') }
         catch [System.Threading.WaitHandleCannotBeOpenedException] { [System.Threading.Thread]::Sleep(50) }
     }
     if (-not $quit) { throw 'Preview did not initialize its shutdown signal.' }
