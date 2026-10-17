@@ -18,10 +18,9 @@ internal static class Program
         Application.SetCompatibleTextRenderingDefault(false);
         if (Diagnostics.TryRun(args)) return;
 
-        // Branch builds are always isolated; never contend with the installed main widget.
-        bool preview = true;
+        bool preview = Array.IndexOf(args, "--popup-preview") >= 0;
         bool open = preview || Array.IndexOf(args, "--open") >= 0;
-        string prefix = "Local\\CodexBarWin.ProviderFixPreview";
+        string prefix = preview ? "Local\\CodexBarWin.CircularPopupPreview" : "Local\\CodexBarWin.LiveTray";
         using var showSignal = new EventWaitHandle(false, EventResetMode.AutoReset, prefix + ".Show");
         using var quitSignal = new EventWaitHandle(false, EventResetMode.AutoReset, prefix + ".Quit");
         if (Array.IndexOf(args, "--quit") >= 0) { quitSignal.Set(); return; }

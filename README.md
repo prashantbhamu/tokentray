@@ -2,14 +2,13 @@
 
 A compact Windows tray widget for Codex and Claude Code usage.
 
-## Provider-fix preview branch
+## Provider security and freshness
 
-This branch (`fix/provider-security-and-freshness`) builds the provider library from
-`source/Core/` and fixes the two inherited risks. See [provider-fixes.md](provider-fixes.md)
-for test evidence and promotion precautions. All launches here are isolated previews;
-the installed main application and its startup entry are unchanged. Unlike main,
-the preview deliberately does not rotate real Claude OAuth tokens while main is running.
-Publish this branch to `publish-provider-fixes/`, not over the installed executable.
+Version 1.2.0 builds the provider library from `source/Core/`, encrypts the widget's
+Claude credential cache with Windows DPAPI, and clearly labels Codex local fallback
+data with its original age. See [provider-fixes.md](provider-fixes.md) for evidence.
+Normal launches enable automatic token refresh. `--popup-preview` remains isolated
+and never rotates the main application's tokens or changes startup settings.
 
 - Tray: outlined vertical weekly meters, black Codex left and orange Claude right, no numerals or backing tile.
 - Popup: 284px-wide circular usage meters, fully opaque, matching the Windows light/dark app theme.
@@ -28,7 +27,7 @@ dotnet publish source/Tray/CodexBarWin.csproj -c Release -o publish
 ./scripts/Test-Lifecycle.ps1 -Executable ./publish/CodexBarWin.exe
 ```
 
-The test script checks formatting, a warning-free Release build, and 174 assertions.
+The test script checks formatting, a warning-free Release build, and 175 assertions.
 Tests cover weekly-only selection, native tray sizes, provider colors, transparency,
 popup/theme states, error bounds, refresh behavior, settings persistence, network policy,
 startup-path validation, cached-data labeling, and DPI-aware settings layout.

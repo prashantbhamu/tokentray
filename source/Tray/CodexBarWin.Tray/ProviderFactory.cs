@@ -11,7 +11,7 @@ internal static class ProviderFactory
     internal static bool NetworkAllowed(bool setting, string? noNetwork) => setting &&
         noNetwork != "1" && !string.Equals(noNetwork, "true", StringComparison.OrdinalIgnoreCase);
 
-    public static ProviderRegistry Create(AppSettings settings, bool preview = true)
+    public static ProviderRegistry Create(AppSettings settings, bool preview = false)
     {
         string? noNetwork = Environment.GetEnvironmentVariable("CODEXBARWIN_NO_NETWORK");
         var providers = new List<IProvider>();

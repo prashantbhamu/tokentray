@@ -1,7 +1,8 @@
 # Provider security and freshness fixes
 
 Branch: `fix/provider-security-and-freshness`, based on main `8d67a58`.
-Not merged or installed. Verified on Windows, 17 October 2026.
+Approved for promotion to main as version 1.2.0 on 17 October 2026.
+The evidence below describes the isolated branch tests before promotion.
 
 ## Changes
 
@@ -71,13 +72,12 @@ dotnet publish source/Tray/CodexBarWin.csproj -c Release -o publish-provider-fix
 The preview executable can run beside main and uses the same approved widget UI.
 Do not register this preview for startup.
 
-## Before a future promotion
+## Production promotion
 
-After approval, stop the old main before permitting real token rotation. Restore
-normal Program preview detection and main mutex/event names, set ProviderFactory's
-default preview to false, and make the lifecycle smoke test target the ordinary
-popup-preview identity. Production Claude construction then enables refresh and
-same-directory protected-cache migration. Re-run tests, publish, and install using
-the existing startup path. Do not copy either account's credentials into release
-archives. Keep an executable rollback, but remember the old main cannot read the
-new encrypted widget cache after production migration.
+Production launch detection, the original LiveTray identity, and the ordinary
+popup-preview lifecycle test identity are restored. ProviderFactory defaults to
+production: refresh and same-directory encrypted-cache migration are enabled.
+The old main must stop before the new production binary performs authenticated
+requests. Installation retains the existing Downloads executable path and startup
+entry. Credentials are never included in release archives. The old executable
+remains a rollback artifact, but cannot read the new encrypted widget cache.
