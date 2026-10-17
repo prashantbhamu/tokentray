@@ -11,7 +11,7 @@ internal sealed class IconPreviewForm : Form
     private readonly Label _testStatus = new() { Width = 650, Height = 42, Margin = new Padding(4, 4, 4, 4), Text = "No test tray icon active. Closing this window removes any preview icon." };
     public IconPreviewForm()
     {
-        Text = "CodexBarWin — split-ring branch test";
+        Text = "CodexBarWin — vertical-bars branch test";
         AutoScaleMode = AutoScaleMode.None;
         Font = new Font("Segoe UI", 14f, FontStyle.Regular, GraphicsUnit.Pixel);
         BackColor = Color.FromArgb(245, 247, 250);
@@ -24,7 +24,7 @@ internal sealed class IconPreviewForm : Form
         AddCase(flow, "Codex higher", new(0.40, 0.19));
         AddCase(flow, "Claude higher", new(0.40, 0.60));
         AddCase(flow, "At the limit", new(1.0, 0.20));
-        flow.Controls.Add(new Label { Text = "Left semicircle: Codex (black) · Right semicircle: Claude (orange)\nEach half shows its own weekly usage. No number or background.\nSmall row: actual 16 / 20 / 24 / 32 pixel renderings. Larger icon above is magnified.",
+        flow.Controls.Add(new Label { Text = "Left bar: Codex (black) · Right bar: Claude (orange)\nWeekly usage fills upward. Same thickness as the split ring; no number or background.\nSmall row: actual 16 / 20 / 24 / 32 pixel renderings. Larger icon above is magnified.",
             Width = 650, Height = 72, Margin = new Padding(4, 12, 4, 4) });
         flow.Controls.Add(_testStatus);
         Shown += (_, _) => SetPreview(new(0.40, 0.19));

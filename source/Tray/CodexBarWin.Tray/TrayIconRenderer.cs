@@ -27,9 +27,9 @@ internal static class TrayIconRenderer
             g.Clear(Color.Transparent);
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.ScaleTransform(size * 4f / 64f, size * 4f / 64f);
-            // Each semicircle independently represents one provider's weekly usage.
-            DrawHalf(g, 266, -172, state.Codex, CodexColor);
-            DrawHalf(g, 274, 172, state.Claude, ClaudeColor);
+            // Same 14-unit thickness as the split ring, with independent bottom-up fill.
+            DrawBar(g, 10, state.Codex, CodexColor);
+            DrawBar(g, 40, state.Claude, ClaudeColor);
         }
         var bitmap = new Bitmap(size, size, PixelFormat.Format32bppArgb);
         using (var g = Graphics.FromImage(bitmap))
@@ -41,14 +41,24 @@ internal static class TrayIconRenderer
         }
         return bitmap;
     }
-    private static void DrawHalf(Graphics g, float start, float sweep, double? fraction, Color color)
+    private static void DrawBar(Graphics g, float x, double? fraction, Color color)
     {
-        var bounds = new RectangleF(9, 9, 46, 46);
-        using var track = new Pen(Track, 14);
-        g.DrawArc(track, bounds, start, sweep);
+        const float top = 2, height = 60, width = 14, radius = 3;
+        using var path = new GraphicsPath();
+        path.AddArc(x, top, radius * 2, radius * 2, 180, 90);
+        path.AddArc(x + width - radius * 2, top, radius * 2, radius * 2, 270, 90);
+        path.AddArc(x + width - radius * 2, top + height - radius * 2, radius * 2, radius * 2, 0, 90);
+        path.AddArc(x, top + height - radius * 2, radius * 2, radius * 2, 90, 90);
+        path.CloseFigure();
+        using var track = new SolidBrush(Track);
+        g.FillPath(track, path);
         if (!fraction.HasValue || fraction.Value <= 0) return;
-        using var progress = new Pen(color, 14);
-        g.DrawArc(progress, bounds, start, sweep * (float)Math.Clamp(fraction.Value, 0, 1));
+        var saved = g.Save();
+        g.SetClip(path, CombineMode.Intersect);
+        float filled = height * (float)Math.Clamp(fraction.Value, 0, 1);
+        using var progress = new SolidBrush(color);
+        g.FillRectangle(progress, x, top + height - filled, width, filled);
+        g.Restore(saved);
     }
     public static void Destroy(nint handle) { if (handle != IntPtr.Zero) DestroyIcon(handle); }
 }

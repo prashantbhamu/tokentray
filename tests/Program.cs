@@ -50,9 +50,9 @@ foreach (var (name, state, color) in new[] {("codex", codex, TrayIconRenderer.Co
 using (var meters = TrayIconRenderer.Render(State(40,19), 128))
 {
     bool Close(Color a, Color b) => Math.Abs(a.R-b.R)<8 && Math.Abs(a.G-b.G)<8 && Math.Abs(a.B-b.B)<8;
-    Check(Close(meters.GetPixel(32,30), TrayIconRenderer.CodexColor), "Upper left arc is Codex black");
-    Check(Close(meters.GetPixel(80,20), TrayIconRenderer.ClaudeColor), "Upper right arc is Claude orange");
-    Check(!Close(meters.GetPixel(20,85), TrayIconRenderer.CodexColor), "Unused left arc remains gray");
-    Check(!Close(meters.GetPixel(108,85), TrayIconRenderer.ClaudeColor), "Unused right arc remains gray");
+    Check(Close(meters.GetPixel(34,110), TrayIconRenderer.CodexColor), "Left bar fills upward in Codex black");
+    Check(Close(meters.GetPixel(94,110), TrayIconRenderer.ClaudeColor), "Right bar fills upward in Claude orange");
+    Check(!Close(meters.GetPixel(34,30), TrayIconRenderer.CodexColor), "Unused left bar remains gray");
+    Check(!Close(meters.GetPixel(94,30), TrayIconRenderer.ClaudeColor), "Unused right bar remains gray");
 }
-Console.WriteLine($"PASS: {count} weekly-selection, color, native-size, and split-ring checks.");
+Console.WriteLine($"PASS: {count} weekly-selection, color, native-size, and vertical-bar checks.");
