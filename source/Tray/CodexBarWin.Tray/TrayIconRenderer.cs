@@ -4,28 +4,21 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
-
 namespace CodexBarWin.Tray;
-
 internal static class TrayIconRenderer
 {
     internal static readonly Color CodexColor = Color.FromArgb(21, 21, 21);
     internal static readonly Color ClaudeColor = Color.FromArgb(232, 119, 34);
     private static readonly Color Track = Color.FromArgb(211, 215, 221);
-
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool DestroyIcon(nint handle);
-
     public static Icon Build(WeeklyIconState state, out nint handle)
     {
-        // Match the shell's small-icon metric instead of handing it a 64px icon
-        // to resample. Supersampling keeps the side meters clean at each DPI.
         using var bitmap = Render(state, Math.Clamp(SystemInformation.SmallIconSize.Width, 16, 64));
         handle = bitmap.GetHicon();
         return Icon.FromHandle(handle);
     }
-
     internal static Bitmap Render(WeeklyIconState state, int size)
     {
         using var high = new Bitmap(size * 4, size * 4, PixelFormat.Format32bppArgb);
@@ -34,11 +27,9 @@ internal static class TrayIconRenderer
             g.Clear(Color.Transparent);
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.ScaleTransform(size * 4f / 64f, size * 4f / 64f);
-            // No tile or backing: only the meters and numeral carry alpha.
-            DrawMeter(g, new RectangleF(2, 3, 9f, 58), state.Codex, CodexColor);
-            DrawMeter(g, new RectangleF(53f, 3, 9f, 58), state.Claude, ClaudeColor);
-            DrawNumber(g, state.Number, state.Leader == WeeklyLeader.Claude ? ClaudeColor
-                : state.Leader == WeeklyLeader.Codex ? CodexColor : Color.FromArgb(115, 123, 135));
+            // Each semicircle independently represents one provider's weekly usage.
+            DrawHalf(g, 266, -172, state.Codex, CodexColor);
+            DrawHalf(g, 274, 172, state.Claude, ClaudeColor);
         }
         var bitmap = new Bitmap(size, size, PixelFormat.Format32bppArgb);
         using (var g = Graphics.FromImage(bitmap))
@@ -50,50 +41,14 @@ internal static class TrayIconRenderer
         }
         return bitmap;
     }
-
-    private static void DrawMeter(Graphics g, RectangleF bounds, double? fraction, Color color)
+    private static void DrawHalf(Graphics g, float start, float sweep, double? fraction, Color color)
     {
-        using var track = new SolidBrush(Track);
-        using var trackPath = Rounded(bounds, 1.5f);
-        g.FillPath(track, trackPath);
+        var bounds = new RectangleF(9, 9, 46, 46);
+        using var track = new Pen(Track, 14);
+        g.DrawArc(track, bounds, start, sweep);
         if (!fraction.HasValue || fraction.Value <= 0) return;
-        float height = (float)(bounds.Height * Math.Clamp(fraction.Value, 0, 1));
-        var saved = g.Save();
-        g.SetClip(trackPath, CombineMode.Intersect);
-        using var progress = new SolidBrush(color);
-        g.FillRectangle(progress, bounds.Left, bounds.Bottom - height, bounds.Width, height);
-        g.Restore(saved);
+        using var progress = new Pen(color, 14);
+        g.DrawArc(progress, bounds, start, sweep * (float)Math.Clamp(fraction.Value, 0, 1));
     }
-
-    private static GraphicsPath Rounded(RectangleF r, float radius)
-    {
-        var path = new GraphicsPath();
-        float d = radius * 2;
-        path.AddArc(r.Left, r.Top, d, d, 180, 90);
-        path.AddArc(r.Right-d, r.Top, d, d, 270, 90);
-        path.AddArc(r.Right-d, r.Bottom-d, d, d, 0, 90);
-        path.AddArc(r.Left, r.Bottom-d, d, d, 90, 90);
-        path.CloseFigure();
-        return path;
-    }
-
-    private static void DrawNumber(Graphics g, string text, Color color)
-    {
-        using var path = new GraphicsPath();
-        using var family = new FontFamily("Segoe UI");
-        path.AddString(text, family, (int)FontStyle.Bold, 48, PointF.Empty, StringFormat.GenericTypographic);
-        var box = path.GetBounds();
-        // Tall condensed numerals use the square interior previously lost to rings.
-        float width = text == "–" ? 22 : text.Length == 1 ? 24 : 34;
-        float height = text == "–" ? 6 : 42;
-        float scaleX = width / box.Width, scaleY = height / box.Height;
-        using var transform = new Matrix(scaleX, 0, 0, scaleY,
-            32 - (box.X + box.Width / 2) * scaleX,
-            32 - (box.Y + box.Height / 2) * scaleY);
-        path.Transform(transform);
-        using var brush = new SolidBrush(color);
-        g.FillPath(brush, path);
-    }
-
     public static void Destroy(nint handle) { if (handle != IntPtr.Zero) DestroyIcon(handle); }
 }

@@ -39,13 +39,10 @@ foreach (var (name, state, color) in new[] {("codex", codex, TrayIconRenderer.Co
         // Tiny resampled glyph/rail edges carry partial alpha; test truly empty
         // area rather than demanding transparent pixels at an antialiased rail corner.
         Check(transparentPixels > size*size/8, "Empty icon area has no background tile");
-        Check(bitmap.GetPixel(size/2,0).A == 0, "Empty space above the numeral stays transparent");
+        Check(bitmap.GetPixel(size/2,size/2).A == 0, "Hollow center stays transparent");
         if(size == 128)
         {
-            int matches=0;
-            for(int y=44;y<84;y++) for(int x=40;x<88;x++)
-            { var p=bitmap.GetPixel(x,y); if(p.A > 240 && Math.Abs(p.R-color.R)<8 && Math.Abs(p.G-color.G)<8 && Math.Abs(p.B-color.B)<8) matches++; }
-            Check(matches > 100, "Center numeral matches the winning provider color");
+            Check(bitmap.GetPixel(64,64).A == 0, "No numeral in hollow transparent center");
         }
         bitmap.Save(Path.Combine(output,$"{name}-{size}.png"),ImageFormat.Png);
     }
@@ -53,9 +50,9 @@ foreach (var (name, state, color) in new[] {("codex", codex, TrayIconRenderer.Co
 using (var meters = TrayIconRenderer.Render(State(40,19), 128))
 {
     bool Close(Color a, Color b) => Math.Abs(a.R-b.R)<8 && Math.Abs(a.G-b.G)<8 && Math.Abs(a.B-b.B)<8;
-    Check(Close(meters.GetPixel(8,100), TrayIconRenderer.CodexColor), "Left meter fills upward in black");
-    Check(Close(meters.GetPixel(120,110), TrayIconRenderer.ClaudeColor), "Right meter fills upward in orange");
-    Check(!Close(meters.GetPixel(8,40), TrayIconRenderer.CodexColor), "Left remainder remains unfilled above usage");
-    Check(!Close(meters.GetPixel(120,40), TrayIconRenderer.ClaudeColor), "Right remainder remains unfilled above usage");
+    Check(Close(meters.GetPixel(32,30), TrayIconRenderer.CodexColor), "Upper left arc is Codex black");
+    Check(Close(meters.GetPixel(80,20), TrayIconRenderer.ClaudeColor), "Upper right arc is Claude orange");
+    Check(!Close(meters.GetPixel(20,85), TrayIconRenderer.CodexColor), "Unused left arc remains gray");
+    Check(!Close(meters.GetPixel(108,85), TrayIconRenderer.ClaudeColor), "Unused right arc remains gray");
 }
-Console.WriteLine($"PASS: {count} weekly-selection, color, native-size, and side-meter checks.");
+Console.WriteLine($"PASS: {count} weekly-selection, color, native-size, and split-ring checks.");
