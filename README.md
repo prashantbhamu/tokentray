@@ -11,7 +11,7 @@ Branch builds must not overwrite Downloads/CodexBarWin.exe or change startup.
 
 ## design/dual-weekly-rings
 
-Outer ring: Codex weekly usage, black. Inner ring: Claude weekly usage, orange.
+Outer ring: Claude weekly usage, orange. Inner ring: Codex weekly usage, black.
 The center number is the higher weekly usage, in that provider's color.
 Ties prefer Codex. Missing weekly data is not replaced with session usage.
 The light opaque core keeps black visible against dark or light taskbars.

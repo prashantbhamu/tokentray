@@ -38,8 +38,8 @@ internal static class TrayIconRenderer
             // Opaque light core preserves the requested black Codex color on
             // either a light or dark Windows taskbar.
             using (var brush = new SolidBrush(Surface)) g.FillEllipse(brush, 0.5f, 0.5f, 63, 63);
-            DrawRing(g, new RectangleF(3.5f, 3.5f, 57, 57), state.Codex, CodexColor);
-            DrawRing(g, new RectangleF(9.5f, 9.5f, 45, 45), state.Claude, ClaudeColor);
+            DrawRing(g, new RectangleF(3.5f, 3.5f, 57, 57), state.Claude, ClaudeColor);
+            DrawRing(g, new RectangleF(9.5f, 9.5f, 45, 45), state.Codex, CodexColor);
             DrawNumber(g, state.Number, state.Leader == WeeklyLeader.Claude ? ClaudeColor
                 : state.Leader == WeeklyLeader.Codex ? CodexColor : Color.FromArgb(115, 123, 135));
         }
