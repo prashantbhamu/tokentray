@@ -3,6 +3,9 @@
  <ItemGroup>
   <Compile Include="../source/Tray/CodexBarWin.Tray/WeeklyIconState.cs" Link="WeeklyIconState.cs" />
   <Compile Include="../source/Tray/CodexBarWin.Tray/TrayIconRenderer.cs" Link="TrayIconRenderer.cs" />
+  <Compile Include="../source/Tray/CodexBarWin.Tray/PopupForm.cs" Link="PopupForm.cs" />
+  <Compile Include="../source/Tray/CodexBarWin.Tray/Theme.cs" Link="Theme.cs" />
+  <PackageReference Include="FontAwesome.Sharp" Version="6.6.0" />
   <Reference Include="CodexBarWin.Core"><HintPath>../bundle/CodexBarWin.Core.dll</HintPath></Reference>
  </ItemGroup>
 </Project>

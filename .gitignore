@@ -1,6 +1,7 @@
 **/bin/
 **/obj/
 publish/
+publish-circular/
 test-results/
 *.user
 *.log

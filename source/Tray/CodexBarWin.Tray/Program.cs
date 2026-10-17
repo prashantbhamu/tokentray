@@ -65,9 +65,9 @@ internal static class Program
 				Application.Run(new IconPreviewForm());
 				return;
 			}
-			using var instance = new Mutex(true, "Local\\CodexBarWin.LiveTray", out bool firstInstance);
+			using var instance = new Mutex(true, "Local\\CodexBarWin.CircularPopupPreview", out bool firstInstance);
 			if (!firstInstance) return;
-			try { Application.Run(new TrayAppContext(Array.IndexOf(args, "--tray-preview") >= 0)); }
+			try { Application.Run(new TrayAppContext(open: true, preview: true)); }
 			finally { instance.ReleaseMutex(); }
 		}
 	}
@@ -99,7 +99,8 @@ internal static class Program
 
 	private static void CapturePopup(string path)
 	{
-		IReadOnlyList<UsageSnapshot> snapshots = ProviderRegistry.CreateDefault().RefreshAll();
+		bool sample = Array.IndexOf(Environment.GetCommandLineArgs(), "--sample-data") >= 0;
+		IReadOnlyList<UsageSnapshot> snapshots = sample ? SampleSnapshots() : ProviderRegistry.CreateDefault().RefreshAll();
 		using PopupForm popupForm = new PopupForm(delegate
 		{
 		});
@@ -108,12 +109,23 @@ internal static class Program
 		popupForm.Show();
 		Application.DoEvents();
 		popupForm.PerformLayout();
-		if (Array.IndexOf(Environment.GetCommandLineArgs(), "--preview-dark") >= 0) Theme.Preview(false);
-		if (Array.IndexOf(Environment.GetCommandLineArgs(), "--preview-light") >= 0) Theme.Preview(true);
+		if (Array.IndexOf(Environment.GetCommandLineArgs(), "--preview-dark") >= 0) popupForm.PreviewTheme(false);
+		if (Array.IndexOf(Environment.GetCommandLineArgs(), "--preview-light") >= 0) popupForm.PreviewTheme(true);
 		using Bitmap bitmap = new Bitmap(popupForm.Width, popupForm.Height);
 		popupForm.DrawToBitmap(bitmap, new Rectangle(0, 0, popupForm.Width, popupForm.Height));
 		bitmap.Save(path, ImageFormat.Png);
 		popupForm.Close();
+	}
+
+	private static IReadOnlyList<UsageSnapshot> SampleSnapshots()
+	{
+		var now = DateTimeOffset.UtcNow;
+		return new[] {
+			new UsageSnapshot("codex", "Codex", "Prolite", new[] { new Meter("Weekly",40,100,"%") },
+				new[] { new ResetWindow("Weekly",now.AddDays(4).AddHours(16).AddSeconds(5)) },ProviderStatus.Ok,null,now),
+			new UsageSnapshot("claude", "Claude Code", "pro", new[] { new Meter("Session (5h)",20,100,"%"),new Meter("Weekly",19,100,"%") },
+				new[] { new ResetWindow("Session (5h)",now.AddMinutes(16).AddSeconds(5)),new ResetWindow("Weekly",now.AddDays(5).AddHours(6).AddSeconds(5)) },ProviderStatus.Ok,null,now)
+		};
 	}
 
 	private static void CaptureIcon(string path)

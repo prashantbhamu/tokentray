@@ -2,13 +2,17 @@ using System;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Windows.Forms;
 using CodexBarWin.Core.Models;
 using CodexBarWin.Tray;
 
 int count = 0;
 void Check(bool condition, string description) { if (!condition) throw new Exception(description); count++; }
 UsageSnapshot Snapshot(string id, double weekly, double session = 0, ProviderStatus status = ProviderStatus.Ok) =>
-    new(id, id, null, new[] { new Meter("Session (5h)", session, 100, "%"), new Meter("Weekly", weekly, 100, "%") },
+    new(id, id, null, id == "codex" ? new[] { new Meter("Weekly",weekly,100,"%") }
+        : new[] { new Meter("Session (5h)", session, 100, "%"), new Meter("Weekly", weekly, 100, "%") },
         Array.Empty<ResetWindow>(), status, null, DateTimeOffset.UtcNow);
 WeeklyIconState State(double c, double a, double session = 0) => WeeklyIconState.FromSnapshots(new[] { Snapshot("codex", c), Snapshot("claude", a, session) });
 
@@ -70,4 +74,52 @@ using (var zero = TrayIconRenderer.Render(State(0,0),128))
     Check(zero.GetPixel(74,40).R > 220 && zero.GetPixel(74,40).G < 140, "Zero-usage Claude keeps its outline");
     Check(zero.GetPixel(34,40).R > 200 && zero.GetPixel(94,40).G > 200, "Zero-usage interiors remain gray");
 }
-Console.WriteLine($"PASS: {count} weekly-selection, color, native-size, and vertical-bar checks.");
+Exception? popupFailure = null;
+var ui = new Thread(() => {
+    try
+    {
+        Application.SetHighDpiMode(HighDpiMode.SystemAware);
+        Application.EnableVisualStyles();
+        int refreshes = 0;
+        using var popup = new PopupForm(() => refreshes++);
+        popup.Location = new Point(-4000,-4000);
+        _ = popup.Handle;
+        Check(!popup.ShowInTaskbar && popup.Opacity == 1, "Popup stays opaque and off taskbar");
+        popup.Render(new[] { Snapshot("codex",40), Snapshot("claude",19,20) });
+        Check(popup.Width == 360 && popup.Height < 340, $"Circular popup remains compact ({popup.Width}x{popup.Height})");
+        popup.Show();
+        Application.DoEvents();
+        var refresh = popup.Controls.OfType<Button>().Single();
+        refresh.PerformClick();
+        Check(refreshes == 1, "Refresh icon invokes refresh callback");
+        popup.SetRefreshing(true);
+        refresh.PerformClick();
+        Check(!refresh.Enabled && refreshes == 1, "Refresh disabled while fetching");
+        popup.SetRefreshing(false);
+        refresh.PerformClick();
+        Check(refreshes == 2, "Refresh reenabled after fetch");
+        foreach (bool light in new[] { true, false })
+        {
+            popup.PreviewTheme(light);
+            using var shot = new Bitmap(popup.Width,popup.Height);
+            popup.DrawToBitmap(shot,new Rectangle(Point.Empty,shot.Size));
+            shot.Save(Path.Combine(output,light ? "popup-light.png" : "popup-dark.png"));
+            bool HasColor(Color c) { int n=0; for(int y=15;y<shot.Height-30;y++) for(int x=18;x<82;x++) { var p=shot.GetPixel(x,y); if(Math.Abs(p.R-c.R)<5 && Math.Abs(p.G-c.G)<5 && Math.Abs(p.B-c.B)<5) n++; } return n>30; }
+            Check(HasColor(TrayIconRenderer.CodexColor), "Popup ring uses Codex black");
+            Check(HasColor(TrayIconRenderer.ClaudeColor), "Popup rings use Claude orange");
+        }
+        popup.Render(Array.Empty<UsageSnapshot>(),true);
+        Check(popup.Height == 84 && !refresh.Enabled,"Loading state is compact and noninteractive");
+        popup.Render(new[] { Snapshot("codex",40,0,ProviderStatus.Error), Snapshot("claude",19) });
+        Check(popup.Height > 100 && popup.Height < 340,"Provider error retains a usable popup");
+        using var errorShot = new Bitmap(popup.Width,popup.Height);
+        popup.DrawToBitmap(errorShot,new Rectangle(Point.Empty,errorShot.Size));
+        errorShot.Save(Path.Combine(output,"popup-error.png"));
+        popup.Close();
+    }
+    catch(Exception ex) { popupFailure = ex; }
+});
+ui.SetApartmentState(ApartmentState.STA);
+ui.Start(); ui.Join();
+if (popupFailure != null) throw popupFailure;
+Console.WriteLine($"PASS: {count} weekly-selection, tray, circular-popup, theme, and refresh checks.");

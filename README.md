@@ -1,5 +1,23 @@
 # CodexBarWin
 
+## design/circular-popup branch
+
+This branch implements the supplied circular-meter reference as a native WinForms popup.
+Black Codex and orange Claude rings, a single divider, percentage centers, and an icon-only
+refresh action replace the main branch's cards and horizontal meters. Fully opaque,
+Windows-theme-aware, 360px wide. Escape dismisses; F5 or the refresh icon refreshes.
+
+The branch executable opens a live preview popup with a separate single-instance guard
+and a temporary tray icon whose tooltip starts with PREVIEW. Settings changes are disabled
+in preview mode. It never replaces the installed executable or changes Windows startup.
+Right-click its tray icon and choose Close branch preview to exit.
+
+`--shot PATH --sample-data --preview-light` captures the reference sample state;
+`--preview-dark` captures the dark variant. Tests now include popup refresh, loading,
+error, theme, sizing and provider-color checks (99 checks total).
+
+The rest of this document describes the main branch behavior.
+
 Baseline: current compact, opaque popup following the Windows app theme.
 Recovered tray sources reference the unchanged installed provider core assembly.
 

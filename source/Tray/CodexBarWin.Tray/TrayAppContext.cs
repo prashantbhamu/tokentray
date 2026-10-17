@@ -25,11 +25,13 @@ internal sealed class TrayAppContext : ApplicationContext
 	private nint _iconHandle = IntPtr.Zero;
 
 	private bool _refreshing;
+	private readonly bool _preview;
 
 	private readonly Dictionary<string, UsageSnapshot> _lastGood = new Dictionary<string, UsageSnapshot>();
 
-	public TrayAppContext(bool open = false)
+	public TrayAppContext(bool open = false, bool preview = false)
 	{
+		_preview = preview;
 		_settings = SettingsStore.Load();
 		_settings.LaunchAtLogin = StartupRegistration.IsEnabled();
 		_registry = BuildRegistry(_settings);
@@ -91,16 +93,16 @@ internal sealed class TrayAppContext : ApplicationContext
 					}
 				},
 				{
-					"Settings…",
+					_preview ? "Settings… (main app only)" : "Settings…",
 					(Image?)null,
 					(EventHandler?)delegate
 					{
-						OpenSettings();
+						if (!_preview) OpenSettings();
 					}
 				},
 				(ToolStripItem)new ToolStripSeparator(),
 				{
-					"Quit",
+					_preview ? "Close branch preview" : "Quit",
 					(Image?)null,
 					(EventHandler?)delegate
 					{
@@ -206,7 +208,8 @@ internal sealed class TrayAppContext : ApplicationContext
 			icon.Dispose();
 		}
 		TrayIconRenderer.Destroy(iconHandle);
-		_tray.Text = BuildTooltip(snapshots);
+		string tooltip = (_preview ? "PREVIEW · " : "") + BuildTooltip(snapshots);
+		_tray.Text = tooltip.Length > 63 ? tooltip.Substring(0,63) : tooltip;
 	}
 
 	private static string BuildTooltip(IReadOnlyList<UsageSnapshot> snapshots)
