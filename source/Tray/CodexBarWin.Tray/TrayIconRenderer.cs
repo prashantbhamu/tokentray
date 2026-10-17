@@ -56,10 +56,10 @@ internal static class TrayIconRenderer
 
     private static void DrawRing(Graphics g, RectangleF bounds, double? fraction, Color color)
     {
-        using var track = new Pen(Track, 3.8f);
+        using var track = new Pen(Track, 4.6f);
         g.DrawEllipse(track, bounds);
         if (!fraction.HasValue || fraction.Value <= 0) return;
-        using var progress = new Pen(color, 3.8f) { StartCap = LineCap.Round, EndCap = LineCap.Round };
+        using var progress = new Pen(color, 4.6f) { StartCap = LineCap.Round, EndCap = LineCap.Round };
         if (fraction.Value >= 1) g.DrawEllipse(progress, bounds);
         else g.DrawArc(progress, bounds, -90, (float)(360 * fraction.Value));
     }
