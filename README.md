@@ -1,50 +1,64 @@
 # CodexBarWin
 
-## Circular usage popup
+A compact Windows tray widget for Codex and Claude Code usage.
 
-The main app implements the supplied circular-meter reference as a native WinForms popup.
-Black Codex and orange Claude rings, a single divider, percentage centers, and an icon-only
-refresh action replace the previous cards and horizontal meters. Fully opaque,
-Windows-theme-aware, 284px wide after trimming unused right-side space. Escape dismisses; F5 or the refresh icon refreshes.
+- Tray: outlined vertical weekly meters, black Codex left and orange Claude right, no numerals or backing tile.
+- Popup: 284px-wide circular usage meters, fully opaque, matching the Windows light/dark app theme.
+- Click the tray icon to toggle the popup; F5 or its refresh button updates usage; Escape dismisses it.
+- No extra taskbar button. One live instance per Windows session.
+- Windows startup uses a single current-user Run entry. Normal startup leaves the popup closed.
 
-`--popup-preview` opens a live preview popup with a separate single-instance guard
-and a temporary tray icon whose tooltip starts with PREVIEW. Settings changes are disabled
-in preview mode. It never replaces the installed executable or changes Windows startup.
-Right-click its tray icon and choose Close branch preview to exit.
+## Build and verify
 
-`--shot PATH --sample-data --preview-light` captures the reference sample state;
-`--preview-dark` captures the dark variant. Tests now include popup refresh, loading,
-error, theme, sizing and provider-color checks (99 checks total).
+Requires Windows and .NET 8 SDK. This checkout was verified using SDK 8.0.426.
 
-Normal startup runs in the tray without opening the popup. `--open` opens it after live usage loads.
+```powershell
+dotnet restore source/Tray/CodexBarWin.csproj
+./scripts/Test-Widget.ps1 -DotNet 'C:/path/to/dotnet.exe'
+dotnet publish source/Tray/CodexBarWin.csproj -c Release -o publish
+./scripts/Test-Lifecycle.ps1 -Executable ./publish/CodexBarWin.exe
+```
 
-Baseline: current compact, opaque popup following the Windows app theme.
-Recovered tray sources reference the unchanged installed provider core assembly.
+The test script checks formatting, a warning-free Release build, and 133 assertions.
+Tests cover weekly-only selection, native tray sizes, provider colors, transparency,
+popup/theme states, error bounds, refresh behavior, settings persistence, network policy,
+startup-path validation, cached-data labeling, and DPI-aware settings layout.
 
-Build with .NET 8 SDK:
+Actual 1920 x 1080 Windows display tests passed at 100% (96 DPI, 16px tray) and 125%
+(120 DPI, 20px tray). The original 150% setting was restored. The popup intentionally
+retains its compact pixel dimensions; the settings dialog sizes to its text and controls.
+See [verification.md](verification.md) and [code-review.md](code-review.md).
 
-    dotnet publish source/Tray/CodexBarWin.csproj -c Release -o publish
+## Command-line controls
 
-The main executable starts directly in the live tray. A per-session mutex prevents duplicate instances.
+```text
+CodexBarWin.exe --open       Open the running widget's popup, without creating a second icon
+CodexBarWin.exe --quit       Gracefully close the live widget
+CodexBarWin.exe --popup-preview   Isolated live preview, no settings/startup changes
+CodexBarWin.exe --popup-preview --quit   Gracefully close the isolated preview
+CodexBarWin.exe --status result.json     Fetch diagnostics using the configured provider/network policy
+CodexBarWin.exe --shot popup.png --sample-data --preview-light
+CodexBarWin.exe --shot popup-dark.png --sample-data --preview-dark
+CodexBarWin.exe --shot-settings settings.png
+```
 
-## Outlined weekly bars
+Diagnostics never change Windows display settings. `CODEXBARWIN_NO_NETWORK=1` (or `true`,
+case-insensitive) disables network fetches for both live mode and diagnostics. Existing
+Codex local fallbacks can still be read when network is disabled.
 
-Left vertical meter: Codex weekly usage, black. Right meter: Claude weekly usage, orange.
-Both meters fill from the bottom. The icon has no background tile: the unused
-space is transparent. There are no numerals. Each full bar, including its gray unused
-area, has a thin outline in its provider's color. Missing weekly data is not replaced with session usage.
+## Code layout
 
-`--icon-preview` opens an isolated visual test window. Each sample has
-a button to try a temporary test icon in the tray. Closing the preview window
-removes that test icon. No installed executable or startup entry is changed.
-`--tray-preview` starts the live tray and opens its popup. Normal startup keeps the popup closed.
+- `source/Tray/CodexBarWin.Tray/`: native popup, tray rendering, refresh lifecycle, settings,
+  startup registration, provider construction, caching, and diagnostics.
+- `bundle/CodexBarWin.Core.dll`: original provider library, retained unchanged. Its static
+  review limitations and inherited risks are documented in the review, not silently rewritten.
+- `tests/WidgetTests.csproj`: native Windows regression tests; test artifacts are ignored by Git.
+- `scripts/`: reproducible checks and graceful-shutdown smoke test.
+- `design/` and `design-qa.md`: supplied reference and reference-comparison evidence.
 
-Checks:
+## History and rollback
 
-    dotnet run --project tests/RingTests.csproj -c Release -- test-results
-
-Popup usage fills use the same solid provider colors as the tray. The tooltip displays
-both percentages without a Weekly prefix; values still represent weekly usage.
-
-99 checks cover weekly selection, session exclusion, missing values, clamping,
-native image sizes, transparency, tray outlines, circular popup, refresh, loading/error, and light/dark themes.
+Only `main` remains active. Merged design branches and superseded previews are archived
+under the task's `outputs/archive/pre-cleanup-2026-10-17/`. The pre-cleanup Git bundle retains
+all design branch names and commits; `git bundle list-heads PATH` lists them. The known-working
+pre-cleanup executable is preserved there too. No authentication files or user documents were removed.

@@ -3,5 +3,7 @@
 publish/
 publish-circular/
 test-results/
+test-results*/
+artifacts/
 *.user
 *.log

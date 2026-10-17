@@ -5,16 +5,8 @@ using CodexBarWin.Core.Models;
 
 namespace CodexBarWin.Tray;
 
-internal enum WeeklyLeader { None, Codex, Claude }
-
 internal sealed record WeeklyIconState(double? Codex, double? Claude)
 {
-    public WeeklyLeader Leader => Codex.HasValue && (!Claude.HasValue || Codex.Value >= Claude.Value)
-        ? WeeklyLeader.Codex : Claude.HasValue ? WeeklyLeader.Claude : WeeklyLeader.None;
-    public double? Highest => Leader == WeeklyLeader.Codex ? Codex : Leader == WeeklyLeader.Claude ? Claude : null;
-    public string Number => Highest.HasValue
-        ? Math.Round(Highest.Value * 100, MidpointRounding.AwayFromZero).ToString("0") : "–";
-
     public static WeeklyIconState FromSnapshots(IReadOnlyList<UsageSnapshot> snapshots) =>
         new(FindWeekly(snapshots, "codex"), FindWeekly(snapshots, "claude"));
 

@@ -47,3 +47,9 @@ No remaining actionable P0/P1/P2 findings.
 ## Follow-up polish
 
 Optional P3: adjust the native refresh icon or footer font weight after the user's in-tray review. No blocking work remains.
+
+## Maintenance verification
+
+The subsequent code-review pass preserves this approved popup composition. Regression coverage
+expanded to 133 checks and actual 100%/125% Full HD display testing. The separate settings dialog's
+125% clipping was fixed with native content-sized layout. See `verification.md` and `code-review.md`.

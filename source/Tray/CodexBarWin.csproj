@@ -2,7 +2,8 @@
  <PropertyGroup>
   <OutputType>WinExe</OutputType><TargetFramework>net8.0-windows</TargetFramework>
   <UseWindowsForms>true</UseWindowsForms><Nullable>enable</Nullable>
-  <GenerateAssemblyInfo>false</GenerateAssemblyInfo><AssemblyName>CodexBarWin</AssemblyName>
+  <AssemblyName>CodexBarWin</AssemblyName><Version>1.1.0</Version>
+  <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   <RuntimeIdentifier>win-x64</RuntimeIdentifier><SelfContained>true</SelfContained>
   <PublishSingleFile>true</PublishSingleFile><EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
   <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>

@@ -1,0 +1,31 @@
+using System.Collections.Generic;
+using CodexBarWin.Core.Models;
+
+namespace CodexBarWin.Tray;
+
+internal sealed class UsageCache
+{
+    private readonly Dictionary<string, UsageSnapshot> _lastGood = new();
+    private readonly HashSet<string> _stale = new();
+    public bool IsStale => _stale.Count > 0;
+
+    public UsageSnapshot Apply(UsageSnapshot snapshot)
+    {
+        _stale.Remove(snapshot.ProviderId);
+        if (snapshot.Status == ProviderStatus.Ok)
+        {
+            _lastGood[snapshot.ProviderId] = snapshot;
+            return snapshot;
+        }
+        if (snapshot.Status is ProviderStatus.Unavailable or ProviderStatus.Error &&
+            _lastGood.TryGetValue(snapshot.ProviderId, out var cached))
+        {
+            _stale.Add(snapshot.ProviderId);
+            return cached with { Message = $"{snapshot.Message ?? "Temporarily unavailable"} · showing {cached.FetchedAt.ToLocalTime():HH:mm}" };
+        }
+        _lastGood.Remove(snapshot.ProviderId);
+        return snapshot;
+    }
+
+    public void Clear() { _lastGood.Clear(); _stale.Clear(); }
+}

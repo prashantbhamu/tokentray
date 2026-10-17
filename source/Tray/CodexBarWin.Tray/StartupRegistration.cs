@@ -5,50 +5,34 @@ namespace CodexBarWin.Tray;
 
 internal static class StartupRegistration
 {
-	private const string RunKeyPath = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
+    private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
+    private const string ValueName = "CodexBarWin";
 
-	private const string ValueName = "CodexBarWin";
+    internal static bool MatchesExecutable(string? command, string? executable) =>
+        !string.IsNullOrWhiteSpace(executable) &&
+        (string.Equals(command?.Trim(), $"\"{executable}\"", StringComparison.OrdinalIgnoreCase) ||
+         string.Equals(command?.Trim(), executable, StringComparison.OrdinalIgnoreCase));
 
-	public static bool IsEnabled()
-	{
-		try
-		{
-			using RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Run", writable: false);
-			return registryKey?.GetValue("CodexBarWin") is string;
-		}
-		catch
-		{
-			return false;
-		}
-	}
+    public static bool IsEnabled()
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath);
+            return MatchesExecutable(key?.GetValue(ValueName) as string, Environment.ProcessPath);
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or System.IO.IOException) { return false; }
+    }
 
-	public static bool Set(bool enabled)
-	{
-		try
-		{
-			using RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Run", writable: true) ?? Registry.CurrentUser.CreateSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Run");
-			if (registryKey == null)
-			{
-				return IsEnabled();
-			}
-			if (enabled)
-			{
-				string processPath = Environment.ProcessPath;
-				if (string.IsNullOrEmpty(processPath))
-				{
-					return false;
-				}
-				registryKey.SetValue("CodexBarWin", "\"" + processPath + "\"");
-			}
-			else
-			{
-				registryKey.DeleteValue("CodexBarWin", throwOnMissingValue: false);
-			}
-			return enabled;
-		}
-		catch
-		{
-			return IsEnabled();
-		}
-	}
+    // Return the verified actual state, not the requested state, if the write fails.
+    public static bool Set(bool enabled)
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.CreateSubKey(RunKeyPath);
+            if (enabled && !string.IsNullOrWhiteSpace(Environment.ProcessPath)) key.SetValue(ValueName, $"\"{Environment.ProcessPath}\"");
+            else if (!enabled) key.DeleteValue(ValueName, throwOnMissingValue: false);
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or System.IO.IOException) { }
+        return IsEnabled();
+    }
 }

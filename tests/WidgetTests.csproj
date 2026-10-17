@@ -5,6 +5,13 @@
   <Compile Include="../source/Tray/CodexBarWin.Tray/TrayIconRenderer.cs" Link="TrayIconRenderer.cs" />
   <Compile Include="../source/Tray/CodexBarWin.Tray/PopupForm.cs" Link="PopupForm.cs" />
   <Compile Include="../source/Tray/CodexBarWin.Tray/Theme.cs" Link="Theme.cs" />
+  <Compile Include="../source/Tray/CodexBarWin.Tray/PopupPlacement.cs" Link="PopupPlacement.cs" />
+  <Compile Include="../source/Tray/CodexBarWin.Tray/UsageCache.cs" Link="UsageCache.cs" />
+  <Compile Include="../source/Tray/CodexBarWin.Tray/SettingsStore.cs" Link="SettingsStore.cs" />
+  <Compile Include="../source/Tray/CodexBarWin.Tray/AppSettings.cs" Link="AppSettings.cs" />
+  <Compile Include="../source/Tray/CodexBarWin.Tray/SettingsForm.cs" Link="SettingsForm.cs" />
+  <Compile Include="../source/Tray/CodexBarWin.Tray/StartupRegistration.cs" Link="StartupRegistration.cs" />
+  <Compile Include="../source/Tray/CodexBarWin.Tray/ProviderFactory.cs" Link="ProviderFactory.cs" />
   <PackageReference Include="FontAwesome.Sharp" Version="6.6.0" />
   <Reference Include="CodexBarWin.Core"><HintPath>../bundle/CodexBarWin.Core.dll</HintPath></Reference>
  </ItemGroup>
