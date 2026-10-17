@@ -8,6 +8,8 @@ using System.Windows.Forms;
 using CodexBarWin.Core.Models;
 using CodexBarWin.Tray;
 
+Application.SetHighDpiMode(HighDpiMode.SystemAware);
+Application.EnableVisualStyles();
 int count = 0;
 void Check(bool condition, string description) { if (!condition) throw new Exception(description); count++; }
 UsageSnapshot Snapshot(string id, double weekly, double session = 0, ProviderStatus status = ProviderStatus.Ok) =>
@@ -78,15 +80,13 @@ Exception? popupFailure = null;
 var ui = new Thread(() => {
     try
     {
-        Application.SetHighDpiMode(HighDpiMode.SystemAware);
-        Application.EnableVisualStyles();
         int refreshes = 0;
         using var popup = new PopupForm(() => refreshes++);
         popup.Location = new Point(-4000,-4000);
         _ = popup.Handle;
         Check(!popup.ShowInTaskbar && popup.Opacity == 1, "Popup stays opaque and off taskbar");
         popup.Render(new[] { Snapshot("codex",40), Snapshot("claude",19,20) });
-        Check(popup.Width == 360 && popup.Height < 340, $"Circular popup remains compact ({popup.Width}x{popup.Height})");
+        Check(popup.Width == 284 && popup.Height < 340, $"Circular popup remains compact ({popup.Width}x{popup.Height})");
         popup.Show();
         Application.DoEvents();
         var refresh = popup.Controls.OfType<Button>().Single();

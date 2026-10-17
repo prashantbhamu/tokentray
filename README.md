@@ -5,7 +5,7 @@
 This branch implements the supplied circular-meter reference as a native WinForms popup.
 Black Codex and orange Claude rings, a single divider, percentage centers, and an icon-only
 refresh action replace the main branch's cards and horizontal meters. Fully opaque,
-Windows-theme-aware, 360px wide. Escape dismisses; F5 or the refresh icon refreshes.
+Windows-theme-aware, 284px wide after trimming unused right-side space. Escape dismisses; F5 or the refresh icon refreshes.
 
 The branch executable opens a live preview popup with a separate single-instance guard
 and a temporary tray icon whose tooltip starts with PREVIEW. Settings changes are disabled

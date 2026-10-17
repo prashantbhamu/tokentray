@@ -11,7 +11,7 @@ namespace CodexBarWin.Tray;
 
 internal sealed class PopupForm : Form
 {
-    private const int W = 360;
+    private const int W = 284;
     private readonly Action _onRefresh;
     private readonly Font _title = new("Segoe UI", 20, FontStyle.Bold, GraphicsUnit.Pixel);
     private readonly Font _header = new("Segoe UI", 18, FontStyle.Bold, GraphicsUnit.Pixel);

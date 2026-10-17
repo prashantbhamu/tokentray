@@ -5,10 +5,10 @@ final result: passed
 ## Evidence and scope
 
 - Source visual truth: `design/reference.png`, the user's supplied 1405 x 1120 screenshot.
-- Implementation: `design/implementation.png` (360 x 293 native pixels); dark variant `design/dark.png`.
+- Implementation: `design/implementation.png` (284 x 293 native pixels); dark variant `design/dark.png`.
 - Combined comparison: `design/comparison.png`. Both designs were opened together in this one comparison image before this report.
-- Normalization: remove the source's surrounding white margin using crop (39,39,1328,1059), then scale uniformly to 360 x 287. Implementation remains native 360 x 293 without stretching. The six-pixel height difference is intentional native text/padding allowance.
-- Viewport: 360px-wide native WinForms popup, SystemAware DPI, AutoScaleMode.None. CSS/deviceScaleFactor do not apply; these are direct app-rendered pixels, not browser screenshots.
+- Normalization: remove the source's surrounding white margin using crop (39,39,1328,1059), then scale uniformly to 360 x 287. Implementation remains native 284 x 293 without stretching. User subsequently requested trimming excess width: right-side whitespace is intentionally reduced by 76px, with rings, fonts and left alignment unchanged. The six-pixel height difference is native text/padding allowance.
+- Viewport: 284px-wide native WinForms popup, SystemAware DPI, AutoScaleMode.None. CSS/deviceScaleFactor do not apply; these are direct app-rendered pixels, not browser screenshots.
 - State: Codex weekly 40%, Claude session 20%, Claude weekly 19%; resets 4d16h, 16m, 5d6h. Capture time is current rather than the reference's historical 19:23. Live preview uses real provider data, not these samples.
 - Native desktop scope: existing WinForms app, not a web rebuild. No web scaffolding or browser verification is applicable.
 
@@ -26,6 +26,7 @@ No remaining actionable P0/P1/P2 findings.
 
 1. First capture: 360 x 315. [P2] Excess vertical spacing versus the normalized reference. Reduced row pitch 66 to 64, Claude heading allowance 32 to 26, top padding 22 to 20, footer allowance 36 to 28. Increased refresh icon size from 19 to 24 to better match reference visibility.
 2. Revised capture: 360 x 293. Opened `design/comparison.png` and inspected at readable scale. Earlier density issue resolved; no actionable P0/P1/P2 differences remain. Focused crops unnecessary because all rings, labels, divider, refresh icon, and footer are readable in the combined 760px-wide comparison. Dark variant opened separately for contrast and clipping inspection.
+3. User refinement: trim unnecessary width. Reduced panel to 284px; refresh and divider follow the new right edge. Recaptured sample light/dark screenshots and reopened combined comparison. Provider names, sample reset times and footer fit without clipping. 99 tests still pass. Test DPI initialization moved before all drawing so test captures use the same process-wide DPI mode as the app.
 
 ## Functional verification
 
