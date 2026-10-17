@@ -255,16 +255,7 @@ internal sealed class PopupForm : Form
 		}
 		int num = card.X + 13;
 		int num2 = card.Y + 13;
-		Color color = Theme.StatusColor(s.Status);
-		using (SolidBrush brush3 = new SolidBrush(Color.FromArgb(70, color)))
-		{
-			g.FillEllipse(brush3, num - 2, num2 + 3, 14, 14);
-		}
-		using (SolidBrush brush4 = new SolidBrush(color))
-		{
-			g.FillEllipse(brush4, num + 1, num2 + 6, 8, 8);
-		}
-		int num3 = num + 18;
+		int num3 = num;
 		Size size = TextRenderer.MeasureText(g, s.DisplayName, _fHeader, Size.Empty, TextFormatFlags.NoPadding);
 		DrawText(g, s.DisplayName, _fHeader, new Rectangle(num3, num2, size.Width + 2, 20), Theme.Text);
 		if (s.Plan != null)
