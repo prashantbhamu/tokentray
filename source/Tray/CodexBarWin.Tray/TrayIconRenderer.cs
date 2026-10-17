@@ -39,8 +39,8 @@ internal static class TrayIconRenderer
             // either a light or dark Windows taskbar.
             using (var brush = new SolidBrush(Surface))
             using (var square = Rounded(new RectangleF(0, 0, 64, 64), 3)) g.FillPath(brush, square);
-            DrawMeter(g, new RectangleF(2, 3, 4.5f, 58), state.Codex, CodexColor);
-            DrawMeter(g, new RectangleF(57.5f, 3, 4.5f, 58), state.Claude, ClaudeColor);
+            DrawMeter(g, new RectangleF(2, 3, 7f, 58), state.Codex, CodexColor);
+            DrawMeter(g, new RectangleF(55f, 3, 7f, 58), state.Claude, ClaudeColor);
             DrawNumber(g, state.Number, state.Leader == WeeklyLeader.Claude ? ClaudeColor
                 : state.Leader == WeeklyLeader.Codex ? CodexColor : Color.FromArgb(115, 123, 135));
         }
@@ -88,8 +88,8 @@ internal static class TrayIconRenderer
         path.AddString(text, family, (int)FontStyle.Bold, 48, PointF.Empty, StringFormat.GenericTypographic);
         var box = path.GetBounds();
         // Tall condensed numerals use the square interior previously lost to rings.
-        float width = text == "–" ? 26 : text.Length == 1 ? 30 : 46;
-        float height = text == "–" ? 6 : 54;
+        float width = text == "–" ? 24 : text.Length == 1 ? 27 : 39;
+        float height = text == "–" ? 6 : 47;
         float scaleX = width / box.Width, scaleY = height / box.Height;
         using var transform = new Matrix(scaleX, 0, 0, scaleY,
             32 - (box.X + box.Width / 2) * scaleX,
