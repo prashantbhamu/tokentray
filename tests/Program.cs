@@ -45,4 +45,12 @@ foreach (var (name, state, color) in new[] {("codex", codex, TrayIconRenderer.Co
         bitmap.Save(Path.Combine(output,$"{name}-{size}.png"),ImageFormat.Png);
     }
 }
-Console.WriteLine($"PASS: {count} weekly-selection, color, and native-size checks.");
+using (var meters = TrayIconRenderer.Render(State(40,19), 128))
+{
+    bool Close(Color a, Color b) => Math.Abs(a.R-b.R)<8 && Math.Abs(a.G-b.G)<8 && Math.Abs(a.B-b.B)<8;
+    Check(Close(meters.GetPixel(8,100), TrayIconRenderer.CodexColor), "Left meter fills upward in black");
+    Check(Close(meters.GetPixel(120,110), TrayIconRenderer.ClaudeColor), "Right meter fills upward in orange");
+    Check(!Close(meters.GetPixel(8,40), TrayIconRenderer.CodexColor), "Left remainder remains unfilled above usage");
+    Check(!Close(meters.GetPixel(120,40), TrayIconRenderer.ClaudeColor), "Right remainder remains unfilled above usage");
+}
+Console.WriteLine($"PASS: {count} weekly-selection, color, native-size, and side-meter checks.");

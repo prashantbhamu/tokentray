@@ -8,10 +8,10 @@ internal sealed class IconPreviewForm : Form
 {
     private readonly NotifyIcon _testTray = new() { Visible = false };
     private nint _testHandle;
-    private readonly Label _testStatus = new() { Width = 650, Height = 42, Margin = new Padding(4, 4, 4, 4), Text = "No test tray icon active. Closing this window removes any preview ring." };
+    private readonly Label _testStatus = new() { Width = 650, Height = 42, Margin = new Padding(4, 4, 4, 4), Text = "No test tray icon active. Closing this window removes any preview icon." };
     public IconPreviewForm()
     {
-        Text = "CodexBarWin — branch ring test";
+        Text = "CodexBarWin — side-meter branch test";
         AutoScaleMode = AutoScaleMode.None;
         Font = new Font("Segoe UI", 14f, FontStyle.Regular, GraphicsUnit.Pixel);
         BackColor = Color.FromArgb(245, 247, 250);
@@ -24,7 +24,7 @@ internal sealed class IconPreviewForm : Form
         AddCase(flow, "Codex higher", new(0.40, 0.19));
         AddCase(flow, "Claude higher", new(0.40, 0.60));
         AddCase(flow, "At the limit", new(1.0, 0.20));
-        flow.Controls.Add(new Label { Text = "Outer ring: Claude (orange) · Inner ring: Codex (black)\nCenter: higher weekly usage, colored for that provider.\nSmall row: actual 16 / 20 / 24 / 32 pixel renderings. Larger icon above is magnified.",
+        flow.Controls.Add(new Label { Text = "Left meter: Codex (black) · Right meter: Claude (orange)\nCenter: higher weekly usage, colored for that provider.\nSmall row: actual 16 / 20 / 24 / 32 pixel renderings. Larger icon above is magnified.",
             Width = 650, Height = 72, Margin = new Padding(4, 12, 4, 4) });
         flow.Controls.Add(_testStatus);
     }
@@ -62,7 +62,7 @@ internal sealed class IconPreviewForm : Form
         _testTray.Visible = true;
         oldIcon?.Dispose();
         TrayIconRenderer.Destroy(oldHandle);
-        _testStatus.Text = $"Test ring active: {state.Number}, {state.Leader} color. Sample data only; installed widget unchanged.";
+        _testStatus.Text = $"Test icon active: {state.Number}, {state.Leader} color. Sample data only; installed widget unchanged.";
     }
 
     protected override void Dispose(bool disposing)

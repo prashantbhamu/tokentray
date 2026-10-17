@@ -21,7 +21,7 @@ internal static class TrayIconRenderer
     public static Icon Build(WeeklyIconState state, out nint handle)
     {
         // Match the shell's small-icon metric instead of handing it a 64px icon
-        // to resample. Supersampling below keeps the arcs clean at each target DPI.
+        // to resample. Supersampling keeps the side meters clean at each DPI.
         using var bitmap = Render(state, Math.Clamp(SystemInformation.SmallIconSize.Width, 16, 64));
         handle = bitmap.GetHicon();
         return Icon.FromHandle(handle);
@@ -37,9 +37,10 @@ internal static class TrayIconRenderer
             g.ScaleTransform(size * 4f / 64f, size * 4f / 64f);
             // Opaque light core preserves the requested black Codex color on
             // either a light or dark Windows taskbar.
-            using (var brush = new SolidBrush(Surface)) g.FillEllipse(brush, 0.5f, 0.5f, 63, 63);
-            DrawRing(g, new RectangleF(3.5f, 3.5f, 57, 57), state.Claude, ClaudeColor);
-            DrawRing(g, new RectangleF(9.5f, 9.5f, 45, 45), state.Codex, CodexColor);
+            using (var brush = new SolidBrush(Surface))
+            using (var square = Rounded(new RectangleF(0, 0, 64, 64), 3)) g.FillPath(brush, square);
+            DrawMeter(g, new RectangleF(2, 3, 4.5f, 58), state.Codex, CodexColor);
+            DrawMeter(g, new RectangleF(57.5f, 3, 4.5f, 58), state.Claude, ClaudeColor);
             DrawNumber(g, state.Number, state.Leader == WeeklyLeader.Claude ? ClaudeColor
                 : state.Leader == WeeklyLeader.Codex ? CodexColor : Color.FromArgb(115, 123, 135));
         }
@@ -54,14 +55,30 @@ internal static class TrayIconRenderer
         return bitmap;
     }
 
-    private static void DrawRing(Graphics g, RectangleF bounds, double? fraction, Color color)
+    private static void DrawMeter(Graphics g, RectangleF bounds, double? fraction, Color color)
     {
-        using var track = new Pen(Track, 4.6f);
-        g.DrawEllipse(track, bounds);
+        using var track = new SolidBrush(Track);
+        using var trackPath = Rounded(bounds, 1.5f);
+        g.FillPath(track, trackPath);
         if (!fraction.HasValue || fraction.Value <= 0) return;
-        using var progress = new Pen(color, 4.6f) { StartCap = LineCap.Round, EndCap = LineCap.Round };
-        if (fraction.Value >= 1) g.DrawEllipse(progress, bounds);
-        else g.DrawArc(progress, bounds, -90, (float)(360 * fraction.Value));
+        float height = (float)(bounds.Height * Math.Clamp(fraction.Value, 0, 1));
+        var saved = g.Save();
+        g.SetClip(trackPath, CombineMode.Intersect);
+        using var progress = new SolidBrush(color);
+        g.FillRectangle(progress, bounds.Left, bounds.Bottom - height, bounds.Width, height);
+        g.Restore(saved);
+    }
+
+    private static GraphicsPath Rounded(RectangleF r, float radius)
+    {
+        var path = new GraphicsPath();
+        float d = radius * 2;
+        path.AddArc(r.Left, r.Top, d, d, 180, 90);
+        path.AddArc(r.Right-d, r.Top, d, d, 270, 90);
+        path.AddArc(r.Right-d, r.Bottom-d, d, d, 0, 90);
+        path.AddArc(r.Left, r.Bottom-d, d, d, 90, 90);
+        path.CloseFigure();
+        return path;
     }
 
     private static void DrawNumber(Graphics g, string text, Color color)
@@ -70,10 +87,13 @@ internal static class TrayIconRenderer
         using var family = new FontFamily("Segoe UI");
         path.AddString(text, family, (int)FontStyle.Bold, 48, PointF.Empty, StringFormat.GenericTypographic);
         var box = path.GetBounds();
-        float scale = Math.Min(37f / box.Width, 31f / box.Height);
-        using var transform = new Matrix(scale, 0, 0, scale,
-            32 - (box.X + box.Width / 2) * scale,
-            32 - (box.Y + box.Height / 2) * scale);
+        // Tall condensed numerals use the square interior previously lost to rings.
+        float width = text == "–" ? 26 : text.Length == 1 ? 30 : 46;
+        float height = text == "–" ? 6 : 54;
+        float scaleX = width / box.Width, scaleY = height / box.Height;
+        using var transform = new Matrix(scaleX, 0, 0, scaleY,
+            32 - (box.X + box.Width / 2) * scaleX,
+            32 - (box.Y + box.Height / 2) * scaleY);
         path.Transform(transform);
         using var brush = new SolidBrush(color);
         g.FillPath(brush, path);

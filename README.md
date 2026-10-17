@@ -9,21 +9,23 @@ Build with .NET 8 SDK:
 
 Branch builds must not overwrite Downloads/CodexBarWin.exe or change startup.
 
-## design/dual-weekly-rings
+## design/side-meters
 
-Outer ring: Claude weekly usage, orange. Inner ring: Codex weekly usage, black.
+Left vertical meter: Codex weekly usage, black. Right meter: Claude weekly usage, orange.
+Both meters fill from the bottom. A nearly full-square opaque core supports much
+larger tall numerals while remaining readable against light or dark taskbars.
 The center number is the higher weekly usage, in that provider's color.
 Ties prefer Codex. Missing weekly data is not replaced with session usage.
 The light opaque core keeps black visible against dark or light taskbars.
 
 The branch executable opens a visual test window by default. Each sample has
-a button to try a temporary test ring in the tray. Closing the preview window
-removes that test ring. No installed executable or startup entry is changed.
+a button to try a temporary test icon in the tray. Closing the preview window
+removes that test icon. No installed executable or startup entry is changed.
 `--tray-preview` explicitly starts the branch build with live provider usage.
 
 Checks:
 
     dotnet run --project tests/RingTests.csproj -c Release -- test-results
 
-43 checks cover weekly selection, session exclusion, winner colors, missing
-values, ties, clamping, exact native image sizes, and opaque centers.
+47 checks cover weekly selection, session exclusion, winner colors, missing
+values, ties, clamping, exact native image sizes, opaque centers, and meter orientation.
