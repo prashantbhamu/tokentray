@@ -67,7 +67,8 @@ Codex local fallbacks can still be read when network is disabled.
 
 ## History and rollback
 
-The prior cleanup left only `main`; this task adds the provider-fix branch. Merged design branches and superseded previews are archived
+The provider-fix branch has been merged into `main` for version 1.2.0.
+Merged design branches and superseded previews are archived
 under the task's `outputs/archive/pre-cleanup-2026-10-17/`. The pre-cleanup Git bundle retains
 all design branch names and commits; `git bundle list-heads PATH` lists them. The known-working
 pre-cleanup executable is preserved there too. No authentication files or user documents were removed.

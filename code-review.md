@@ -1,5 +1,10 @@
 # Code review and cleanup — 17 October 2026
 
+Update: the two inherited provider risks below were subsequently fixed, tested,
+merged, and installed in version 1.2.0. See [provider-fixes.md](provider-fixes.md)
+for the changes and installed live-usage/startup evidence. The original review
+below is retained as historical evidence, not a list of current unfixed risks.
+
 ## Scope and conclusion
 
 Reviewed the native tray/popup application, settings, startup registration, lifecycle, diagnostics,

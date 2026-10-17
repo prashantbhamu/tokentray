@@ -1,7 +1,7 @@
 # Provider security and freshness fixes
 
 Branch: `fix/provider-security-and-freshness`, based on main `8d67a58`.
-Approved for promotion to main as version 1.2.0 on 17 October 2026.
+Merged into main and installed as version 1.2.0 on 17 October 2026.
 The evidence below describes the isolated branch tests before promotion.
 
 ## Changes
@@ -23,7 +23,7 @@ The evidence below describes the isolated branch tests before promotion.
 The formerly binary-only Core is source-built on this branch. The original DLL
 remains unchanged and unreferenced for rollback.
 
-## Side-by-side safety
+## Original branch side-by-side safety (before promotion)
 
 All branch launches use the separate ProviderFixPreview identity and disabled
 settings/startup controls. The encrypted real-login copy is stored under
@@ -60,17 +60,19 @@ Actual OAuth token rotation was tested with injected fake refresh/usage clients,
 not forced against the real account. Live authenticated API reads and reopening
 the encrypted preview cache were exercised against the existing login.
 
-## Reproduce
+## Reproduce on current main
 
 ```powershell
-./scripts/Test-Widget.ps1 -Output test-results-provider-fixes
-dotnet publish source/Tray/CodexBarWin.csproj -c Release -o publish-provider-fixes
-./scripts/Test-Lifecycle.ps1 -Executable ./publish-provider-fixes/CodexBarWin.exe
-./publish-provider-fixes/CodexBarWin.exe --status result.json
+./scripts/Test-Widget.ps1 -Output test-results-production
+dotnet publish source/Tray/CodexBarWin.csproj -c Release -o publish
+./scripts/Test-Lifecycle.ps1 -Executable ./publish/CodexBarWin.exe
+./publish/CodexBarWin.exe --popup-preview
 ```
 
-The preview executable can run beside main and uses the same approved widget UI.
-Do not register this preview for startup.
+The explicit popup-preview mode can run beside main and uses the same approved
+widget UI. Do not register a preview for startup. Production diagnostics
+(`--status result.json`) permit real token rotation: avoid simultaneous diagnostic
+and app requests around token expiry.
 
 ## Production promotion
 
@@ -81,3 +83,25 @@ The old main must stop before the new production binary performs authenticated
 requests. Installation retains the existing Downloads executable path and startup
 entry. Credentials are never included in release archives. The old executable
 remains a rollback artifact, but cannot read the new encrypted widget cache.
+
+## Installed release verification
+
+- All 175 assertions pass, including the new production-default regression check.
+- Production build: zero warnings/errors; graceful preview lifecycle test passes.
+- Installed path: `C:/Users/Administrator/Downloads/CodexBarWin.exe`.
+- SHA-256: `0F07026DD4CCB7F2225B7201337A130C37E2BA5AA11B22D56980F55577735232`.
+- The old process exited gracefully before replacement and authenticated checks.
+- Installed API check at 22:45 IST returned status OK and source Live for both:
+  Codex weekly 50%; Claude session 26%, weekly 22%; no warnings or re-login.
+- A subsequent installed-process popup capture at 22:46 also returned current data
+  and preserved the approved black/orange compact UI.
+- Claude CLI login file hash is unchanged. Production DPAPI cache exists;
+  no plaintext widget cache exists. No account secrets are in release artifacts.
+- The production app is running. A duplicate launch exited, leaving one instance.
+- The HKCU Run entry remains the quoted installed path, with no StartupApproved
+  disable override. No Windows restart was performed during verification.
+- Version 1.1.0 executable and pre-upgrade source/bundle copies are preserved in
+  `outputs/archive/before-provider-fixes-1.2.0/` under the task workspace.
+
+Automatic OAuth refresh is enabled in production. Expiry/401 recovery remains
+covered by fake-client tests; real token rotation was not forced unnecessarily.
