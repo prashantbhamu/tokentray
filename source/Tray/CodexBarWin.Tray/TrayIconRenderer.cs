@@ -28,8 +28,9 @@ internal static class TrayIconRenderer
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.ScaleTransform(size * 4f / 64f, size * 4f / 64f);
             // Wider bars with an eight-unit transparent gap, independent bottom-up fill.
-            DrawBar(g, 4, state.Codex, CodexColor);
-            DrawBar(g, 36, state.Claude, ClaudeColor);
+            float outline = Math.Max(2f, 48f / size);
+            DrawBar(g, 4, state.Codex, CodexColor, outline);
+            DrawBar(g, 36, state.Claude, ClaudeColor, outline);
         }
         var bitmap = new Bitmap(size, size, PixelFormat.Format32bppArgb);
         using (var g = Graphics.FromImage(bitmap))
@@ -41,7 +42,7 @@ internal static class TrayIconRenderer
         }
         return bitmap;
     }
-    private static void DrawBar(Graphics g, float x, double? fraction, Color color)
+    private static void DrawBar(Graphics g, float x, double? fraction, Color color, float outline)
     {
         const float top = 2, height = 60, width = 24, radius = 3;
         using var path = new GraphicsPath();
@@ -52,12 +53,18 @@ internal static class TrayIconRenderer
         path.CloseFigure();
         using var track = new SolidBrush(Track);
         g.FillPath(track, path);
-        if (!fraction.HasValue || fraction.Value <= 0) return;
         var saved = g.Save();
         g.SetClip(path, CombineMode.Intersect);
-        float filled = height * (float)Math.Clamp(fraction.Value, 0, 1);
-        using var progress = new SolidBrush(color);
-        g.FillRectangle(progress, x, top + height - filled, width, filled);
+        if (fraction.HasValue && fraction.Value > 0)
+        {
+            float filled = height * (float)Math.Clamp(fraction.Value, 0, 1);
+            using var progress = new SolidBrush(color);
+            g.FillRectangle(progress, x, top + height - filled, width, filled);
+        }
+        // Clip the stroke inside the bar so its outer size and clear gap stay unchanged.
+        // Always outline the gray track, even at zero usage or when data is unavailable.
+        using var border = new Pen(color, outline * 2) { LineJoin = LineJoin.Round };
+        g.DrawPath(border, path);
         g.Restore(saved);
     }
     public static void Destroy(nint handle) { if (handle != IntPtr.Zero) DestroyIcon(handle); }
