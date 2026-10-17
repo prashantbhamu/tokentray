@@ -1,13 +1,13 @@
 # CodexBarWin
 
-## design/circular-popup branch
+## Circular usage popup
 
-This branch implements the supplied circular-meter reference as a native WinForms popup.
+The main app implements the supplied circular-meter reference as a native WinForms popup.
 Black Codex and orange Claude rings, a single divider, percentage centers, and an icon-only
-refresh action replace the main branch's cards and horizontal meters. Fully opaque,
+refresh action replace the previous cards and horizontal meters. Fully opaque,
 Windows-theme-aware, 284px wide after trimming unused right-side space. Escape dismisses; F5 or the refresh icon refreshes.
 
-The branch executable opens a live preview popup with a separate single-instance guard
+`--popup-preview` opens a live preview popup with a separate single-instance guard
 and a temporary tray icon whose tooltip starts with PREVIEW. Settings changes are disabled
 in preview mode. It never replaces the installed executable or changes Windows startup.
 Right-click its tray icon and choose Close branch preview to exit.
@@ -16,7 +16,7 @@ Right-click its tray icon and choose Close branch preview to exit.
 `--preview-dark` captures the dark variant. Tests now include popup refresh, loading,
 error, theme, sizing and provider-color checks (99 checks total).
 
-The rest of this document describes the main branch behavior.
+Normal startup runs in the tray without opening the popup. `--open` opens it after live usage loads.
 
 Baseline: current compact, opaque popup following the Windows app theme.
 Recovered tray sources reference the unchanged installed provider core assembly.
@@ -46,5 +46,5 @@ Checks:
 Popup usage fills use the same solid provider colors as the tray. The tooltip displays
 both percentages without a Weekly prefix; values still represent weekly usage.
 
-88 checks cover weekly selection, session exclusion, missing values, clamping,
-native image sizes, transparency, meter orientation, and full provider-colored outlines.
+99 checks cover weekly selection, session exclusion, missing values, clamping,
+native image sizes, transparency, tray outlines, circular popup, refresh, loading/error, and light/dark themes.

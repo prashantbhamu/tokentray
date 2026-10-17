@@ -65,9 +65,11 @@ internal static class Program
 				Application.Run(new IconPreviewForm());
 				return;
 			}
-			using var instance = new Mutex(true, "Local\\CodexBarWin.CircularPopupPreview", out bool firstInstance);
+			bool preview = Array.IndexOf(args, "--popup-preview") >= 0;
+			using var instance = new Mutex(true, preview ? "Local\\CodexBarWin.CircularPopupPreview" : "Local\\CodexBarWin.LiveTray", out bool firstInstance);
 			if (!firstInstance) return;
-			try { Application.Run(new TrayAppContext(open: true, preview: true)); }
+			bool open = preview || Array.IndexOf(args, "--open") >= 0 || Array.IndexOf(args, "--tray-preview") >= 0;
+			try { Application.Run(new TrayAppContext(open: open, preview: preview)); }
 			finally { instance.ReleaseMutex(); }
 		}
 	}

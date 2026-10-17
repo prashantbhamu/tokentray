@@ -37,7 +37,7 @@ internal sealed class PopupForm : Form
         _onRefresh = onRefresh;
         Theme.RefreshWindowsTheme();
         AutoScaleMode = AutoScaleMode.None;
-        Text = "CodexBarWin — circular popup preview";
+        Text = "CodexBarWin";
         AccessibleName = "CodexBarWin circular usage popup";
         FormBorderStyle = FormBorderStyle.None;
         ShowInTaskbar = false;
