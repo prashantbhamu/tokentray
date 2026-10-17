@@ -1,0 +1,48 @@
+using System;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.IO;
+using CodexBarWin.Core.Models;
+using CodexBarWin.Tray;
+
+int count = 0;
+void Check(bool condition, string description) { if (!condition) throw new Exception(description); count++; }
+UsageSnapshot Snapshot(string id, double weekly, double session = 0, ProviderStatus status = ProviderStatus.Ok) =>
+    new(id, id, null, new[] { new Meter("Session (5h)", session, 100, "%"), new Meter("Weekly", weekly, 100, "%") },
+        Array.Empty<ResetWindow>(), status, null, DateTimeOffset.UtcNow);
+WeeklyIconState State(double c, double a, double session = 0) => WeeklyIconState.FromSnapshots(new[] { Snapshot("codex", c), Snapshot("claude", a, session) });
+
+var codex = State(40, 19, 95);
+Check(codex.Leader == WeeklyLeader.Codex && codex.Number == "40", "Session usage must not override weekly");
+Check(State(40, 60).Leader == WeeklyLeader.Claude && State(40, 60).Number == "60", "Claude higher weekly selects orange");
+Check(State(40, 40).Leader == WeeklyLeader.Codex, "Ties deterministically prefer Codex");
+Check(State(0, 0).Number == "0", "Zero is valid usage");
+Check(State(150, -5).Number == "100" && State(150, -5).Claude == 0, "Clamp provider out-of-range percentages");
+Check(State(double.NaN, 19).Leader == WeeklyLeader.Claude, "Ignore invalid percentages");
+var missing = WeeklyIconState.FromSnapshots(Array.Empty<UsageSnapshot>());
+Check(missing.Leader == WeeklyLeader.None && missing.Number == "–", "No data must not fabricate zero");
+Check(WeeklyIconState.FromSnapshots(new[] { Snapshot("codex", 80, 95, ProviderStatus.Error), Snapshot("claude", 19) }).Number == "19", "Unavailable provider must not win");
+var sessionOnly = new UsageSnapshot("claude", "Claude", null, new[] {new Meter("Session (5h)", 99, 100, "%")}, Array.Empty<ResetWindow>(), ProviderStatus.Ok, null, DateTimeOffset.UtcNow);
+Check(WeeklyIconState.FromSnapshots(new[] {sessionOnly}).Leader == WeeklyLeader.None, "No fallback from weekly to session");
+Check(State(40, 19).Tooltip.Contains("Codex 40%") && State(40, 19).Tooltip.Contains("Claude 19%"), "Tooltip exposes both weekly values");
+
+var output = args.Length > 0 ? args[0] : "test-results";
+Directory.CreateDirectory(output);
+foreach (var (name, state, color) in new[] {("codex", codex, TrayIconRenderer.CodexColor), ("claude", State(40,60), TrayIconRenderer.ClaudeColor), ("hundred", State(100,20), TrayIconRenderer.CodexColor)})
+{
+    foreach (int size in new[] {16,20,24,32,128})
+    {
+        using var bitmap = TrayIconRenderer.Render(state, size);
+        Check(bitmap.Width == size && bitmap.Height == size, "Exact native render size");
+        Check(bitmap.GetPixel(size/2,size/2).A == 255, "Center stays opaque on either taskbar theme");
+        if(size == 128)
+        {
+            int matches=0;
+            for(int y=44;y<84;y++) for(int x=40;x<88;x++)
+            { var p=bitmap.GetPixel(x,y); if(Math.Abs(p.R-color.R)<8 && Math.Abs(p.G-color.G)<8 && Math.Abs(p.B-color.B)<8) matches++; }
+            Check(matches > 100, "Center numeral matches the winning provider color");
+        }
+        bitmap.Save(Path.Combine(output,$"{name}-{size}.png"),ImageFormat.Png);
+    }
+}
+Console.WriteLine($"PASS: {count} weekly-selection, color, and native-size checks.");

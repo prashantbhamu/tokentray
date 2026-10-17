@@ -60,7 +60,11 @@ internal static class Program
 		}
 		else
 		{
-			Application.Run(new TrayAppContext(Array.IndexOf(args, "--open") >= 0));
+			// Branch builds open the isolated visual test by default. Live tray
+			// behavior is opt-in and never changes the installed executable.
+			if (Array.IndexOf(args, "--tray-preview") >= 0)
+				Application.Run(new TrayAppContext(true));
+			else Application.Run(new IconPreviewForm());
 		}
 	}
 
@@ -110,18 +114,18 @@ internal static class Program
 
 	private static void CaptureIcon(string path)
 	{
-		double[] array = new double[3] { 0.07, 0.55, 0.92 };
+		WeeklyIconState[] array = { new(0.40, 0.19), new(0.40, 0.60), new(1.0, 0.2) };
 		using Bitmap bitmap = new Bitmap(array.Length * 56 + 8, 64);
 		using (Graphics graphics = Graphics.FromImage(bitmap))
 		{
 			graphics.Clear(Color.FromArgb(40, 40, 48));
 			graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
 			int num = 8;
-			double[] array2 = array;
+			WeeklyIconState[] array2 = array;
 			for (int i = 0; i < array2.Length; i++)
 			{
 				nint handle;
-				Icon icon = TrayIconRenderer.Build(array2[i], hasData: true, out handle);
+				Icon icon = TrayIconRenderer.Build(array2[i], out handle);
 				using (Bitmap image = icon.ToBitmap())
 				{
 					graphics.DrawImage(image, new Rectangle(num, 8, 48, 48));

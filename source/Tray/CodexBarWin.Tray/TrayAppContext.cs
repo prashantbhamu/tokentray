@@ -196,13 +196,10 @@ internal sealed class TrayAppContext : ApplicationContext
 
 	private void UpdateIcon(IReadOnlyList<UsageSnapshot> snapshots)
 	{
-		List<double> list = (from m in snapshots.Where((UsageSnapshot s) => s.Status == ProviderStatus.Ok).SelectMany((UsageSnapshot s) => s.Meters)
-			select m.Fraction).ToList();
-		bool flag = list.Count > 0;
-		double fraction = (flag ? list.Max() : 0.0);
+		WeeklyIconState state = WeeklyIconState.FromSnapshots(snapshots);
 		Icon icon = _tray.Icon;
 		nint iconHandle = _iconHandle;
-		_tray.Icon = TrayIconRenderer.Build(fraction, flag, out _iconHandle);
+		_tray.Icon = TrayIconRenderer.Build(state, out _iconHandle);
 		if (icon != null && icon != SystemIcons.Application)
 		{
 			icon.Dispose();
@@ -213,16 +210,7 @@ internal sealed class TrayAppContext : ApplicationContext
 
 	private static string BuildTooltip(IReadOnlyList<UsageSnapshot> snapshots)
 	{
-		IEnumerable<string> values = snapshots.Select(delegate(UsageSnapshot s)
-		{
-			if (s.Status == ProviderStatus.Ok && s.Meters.Count != 0)
-			{
-				double value = s.Meters.Max((Meter m) => m.Fraction);
-				return $"{s.DisplayName}: {value:P0}";
-			}
-			return $"{s.DisplayName}: {s.Status}";
-		});
-		string text = string.Join("  ·  ", values);
+		string text = WeeklyIconState.FromSnapshots(snapshots).Tooltip;
 		if (!string.IsNullOrEmpty(text))
 		{
 			if (text.Length > 63)
