@@ -1,0 +1,6 @@
+**/bin/
+**/obj/
+publish/
+test-results/
+*.user
+*.log
