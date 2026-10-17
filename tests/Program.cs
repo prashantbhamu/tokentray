@@ -35,11 +35,12 @@ foreach (var (name, state, color) in new[] {("codex", codex, TrayIconRenderer.Co
         using var bitmap = TrayIconRenderer.Render(state, size);
         Check(bitmap.Width == size && bitmap.Height == size, "Exact native render size");
         int transparentPixels=0;
-        for(int y=0;y<size;y++) for(int x=0;x<size;x++) if(bitmap.GetPixel(x,y).A==0) transparentPixels++;
+        for(int y=0;y<size;y++) for(int x=0;x<size;x++) if(bitmap.GetPixel(x,y).A<16) transparentPixels++;
         // Tiny resampled glyph/rail edges carry partial alpha; test truly empty
         // area rather than demanding transparent pixels at an antialiased rail corner.
         Check(transparentPixels > size*size/8, "Empty icon area has no background tile");
-        Check(bitmap.GetPixel(size/2,size/2).A == 0, "Hollow center stays transparent");
+        Check(bitmap.GetPixel(size/2,size/2).A < 32, "Gap stays clear apart from tiny-size antialias fringe");
+        Check(bitmap.GetPixel(0,0).A == 0, "No backing tile at outside corner");
         if(size == 128)
         {
             Check(bitmap.GetPixel(64,64).A == 0, "No numeral in hollow transparent center");
@@ -54,5 +55,8 @@ using (var meters = TrayIconRenderer.Render(State(40,19), 128))
     Check(Close(meters.GetPixel(94,110), TrayIconRenderer.ClaudeColor), "Right bar fills upward in Claude orange");
     Check(!Close(meters.GetPixel(34,30), TrayIconRenderer.CodexColor), "Unused left bar remains gray");
     Check(!Close(meters.GetPixel(94,30), TrayIconRenderer.ClaudeColor), "Unused right bar remains gray");
+    Check(Close(meters.GetPixel(14,110), TrayIconRenderer.CodexColor), "Thicker left bar extends toward edge");
+    Check(Close(meters.GetPixel(114,110), TrayIconRenderer.ClaudeColor), "Thicker right bar extends toward edge");
+    Check(meters.GetPixel(64,110).A == 0, "Narrow gap still separates the bars");
 }
 Console.WriteLine($"PASS: {count} weekly-selection, color, native-size, and vertical-bar checks.");

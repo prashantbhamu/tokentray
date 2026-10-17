@@ -27,9 +27,9 @@ internal static class TrayIconRenderer
             g.Clear(Color.Transparent);
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.ScaleTransform(size * 4f / 64f, size * 4f / 64f);
-            // Same 14-unit thickness as the split ring, with independent bottom-up fill.
-            DrawBar(g, 10, state.Codex, CodexColor);
-            DrawBar(g, 40, state.Claude, ClaudeColor);
+            // Wider bars with an eight-unit transparent gap, independent bottom-up fill.
+            DrawBar(g, 4, state.Codex, CodexColor);
+            DrawBar(g, 36, state.Claude, ClaudeColor);
         }
         var bitmap = new Bitmap(size, size, PixelFormat.Format32bppArgb);
         using (var g = Graphics.FromImage(bitmap))
@@ -43,7 +43,7 @@ internal static class TrayIconRenderer
     }
     private static void DrawBar(Graphics g, float x, double? fraction, Color color)
     {
-        const float top = 2, height = 60, width = 14, radius = 3;
+        const float top = 2, height = 60, width = 24, radius = 3;
         using var path = new GraphicsPath();
         path.AddArc(x, top, radius * 2, radius * 2, 180, 90);
         path.AddArc(x + width - radius * 2, top, radius * 2, radius * 2, 270, 90);
