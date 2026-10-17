@@ -25,5 +25,8 @@ Checks:
 
     dotnet run --project tests/RingTests.csproj -c Release -- test-results
 
-87 checks cover weekly selection, session exclusion, missing values, clamping,
+Popup usage fills use the same solid provider colors as the tray. The tooltip displays
+both percentages without a Weekly prefix; values still represent weekly usage.
+
+88 checks cover weekly selection, session exclusion, missing values, clamping,
 native image sizes, transparency, meter orientation, and full provider-colored outlines.

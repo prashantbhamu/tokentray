@@ -25,6 +25,7 @@ Check(WeeklyIconState.FromSnapshots(new[] { Snapshot("codex", 80, 95, ProviderSt
 var sessionOnly = new UsageSnapshot("claude", "Claude", null, new[] {new Meter("Session (5h)", 99, 100, "%")}, Array.Empty<ResetWindow>(), ProviderStatus.Ok, null, DateTimeOffset.UtcNow);
 Check(WeeklyIconState.FromSnapshots(new[] {sessionOnly}).Leader == WeeklyLeader.None, "No fallback from weekly to session");
 Check(State(40, 19).Tooltip.Contains("Codex 40%") && State(40, 19).Tooltip.Contains("Claude 19%"), "Tooltip exposes both weekly values");
+Check(!State(40,19).Tooltip.Contains("Weekly", StringComparison.OrdinalIgnoreCase), "Tooltip omits Weekly prefix");
 
 var output = args.Length > 0 ? args[0] : "test-results";
 Directory.CreateDirectory(output);

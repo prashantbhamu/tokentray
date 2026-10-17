@@ -26,6 +26,6 @@ internal sealed record WeeklyIconState(double? Codex, double? Claude)
             ? Math.Clamp(meter.Fraction, 0, 1) : null;
     }
 
-    public string Tooltip => $"Weekly · Codex {Format(Codex)} · Claude {Format(Claude)}";
+    public string Tooltip => $"Codex {Format(Codex)} · Claude {Format(Claude)}";
     private static string Format(double? value) => value.HasValue ? $"{value.Value:P0}" : "unavailable";
 }

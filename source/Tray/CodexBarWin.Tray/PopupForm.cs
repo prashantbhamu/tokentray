@@ -278,7 +278,9 @@ internal sealed class PopupForm : Form
 			{
 				DrawText(g, m.Label, _fLabel, new Rectangle(num, num2, contentW - 56, 19), Theme.TextDim);
 				DrawText(g, m.Fraction.ToString("P0"), _fPct, new Rectangle(num + contentW - 56, num2, 56, 19), Theme.Text, TextFormatFlags.Right);
-				DrawMeter(g, new Rectangle(num, num2 + 21, contentW, 7), m.Fraction);
+				Color meterColor = s.ProviderId == "codex" ? TrayIconRenderer.CodexColor
+					: s.ProviderId == "claude" ? TrayIconRenderer.ClaudeColor : Theme.MeterColor(m.Fraction);
+				DrawMeter(g, new Rectangle(num, num2 + 21, contentW, 7), m.Fraction, meterColor);
 				ResetWindow resetWindow = s.Resets.FirstOrDefault((ResetWindow r) => r.Label == m.Label);
 				if ((object)resetWindow != null)
 				{
@@ -298,7 +300,7 @@ internal sealed class PopupForm : Form
 		}
 	}
 
-	private void DrawMeter(Graphics g, Rectangle r, double fraction)
+	private void DrawMeter(Graphics g, Rectangle r, double fraction, Color color)
 	{
 		fraction = Math.Clamp(fraction, 0.0, 1.0);
 		float num = (float)r.Height / 2f;
@@ -313,13 +315,7 @@ internal sealed class PopupForm : Form
 			return;
 		}
 		Rectangle rectangle = new Rectangle(r.X, r.Y, num2, r.Height);
-		var (color, color2) = Theme.MeterGradient(fraction);
-		using (SolidBrush brush2 = new SolidBrush(Color.FromArgb(60, color2)))
-		{
-			using GraphicsPath path2 = Rounded(new Rectangle(rectangle.X, rectangle.Y - 1, rectangle.Width, rectangle.Height + 2), num + 1f);
-			g.FillPath(brush2, path2);
-		}
-		using LinearGradientBrush brush3 = new LinearGradientBrush(rectangle, color, color2, LinearGradientMode.Horizontal);
+		using SolidBrush brush3 = new SolidBrush(color);
 		using GraphicsPath path3 = Rounded(rectangle, num);
 		g.FillPath(brush3, path3);
 	}
