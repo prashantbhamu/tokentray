@@ -34,12 +34,17 @@ foreach (var (name, state, color) in new[] {("codex", codex, TrayIconRenderer.Co
     {
         using var bitmap = TrayIconRenderer.Render(state, size);
         Check(bitmap.Width == size && bitmap.Height == size, "Exact native render size");
-        Check(bitmap.GetPixel(size/2,size/2).A == 255, "Center stays opaque on either taskbar theme");
+        int transparentPixels=0;
+        for(int y=0;y<size;y++) for(int x=0;x<size;x++) if(bitmap.GetPixel(x,y).A==0) transparentPixels++;
+        // Tiny resampled glyph/rail edges carry partial alpha; test truly empty
+        // area rather than demanding transparent pixels at an antialiased rail corner.
+        Check(transparentPixels > size*size/8, "Empty icon area has no background tile");
+        Check(bitmap.GetPixel(size/2,0).A == 0, "Empty space above the numeral stays transparent");
         if(size == 128)
         {
             int matches=0;
             for(int y=44;y<84;y++) for(int x=40;x<88;x++)
-            { var p=bitmap.GetPixel(x,y); if(Math.Abs(p.R-color.R)<8 && Math.Abs(p.G-color.G)<8 && Math.Abs(p.B-color.B)<8) matches++; }
+            { var p=bitmap.GetPixel(x,y); if(p.A > 240 && Math.Abs(p.R-color.R)<8 && Math.Abs(p.G-color.G)<8 && Math.Abs(p.B-color.B)<8) matches++; }
             Check(matches > 100, "Center numeral matches the winning provider color");
         }
         bitmap.Save(Path.Combine(output,$"{name}-{size}.png"),ImageFormat.Png);

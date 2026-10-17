@@ -12,7 +12,6 @@ internal static class TrayIconRenderer
     internal static readonly Color CodexColor = Color.FromArgb(21, 21, 21);
     internal static readonly Color ClaudeColor = Color.FromArgb(232, 119, 34);
     private static readonly Color Track = Color.FromArgb(211, 215, 221);
-    private static readonly Color Surface = Color.FromArgb(250, 250, 250);
 
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -35,10 +34,7 @@ internal static class TrayIconRenderer
             g.Clear(Color.Transparent);
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.ScaleTransform(size * 4f / 64f, size * 4f / 64f);
-            // Opaque light core preserves the requested black Codex color on
-            // either a light or dark Windows taskbar.
-            using (var brush = new SolidBrush(Surface))
-            using (var square = Rounded(new RectangleF(0, 0, 64, 64), 3)) g.FillPath(brush, square);
+            // No tile or backing: only the meters and numeral carry alpha.
             DrawMeter(g, new RectangleF(2, 3, 9f, 58), state.Codex, CodexColor);
             DrawMeter(g, new RectangleF(53f, 3, 9f, 58), state.Claude, ClaudeColor);
             DrawNumber(g, state.Number, state.Leader == WeeklyLeader.Claude ? ClaudeColor
