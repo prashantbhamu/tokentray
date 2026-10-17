@@ -31,6 +31,7 @@ internal sealed class TrayAppContext : ApplicationContext
 	public TrayAppContext(bool open = false)
 	{
 		_settings = SettingsStore.Load();
+		_settings.LaunchAtLogin = StartupRegistration.IsEnabled();
 		_registry = BuildRegistry(_settings);
 		_popup = new PopupForm(RequestRefresh);
 		if (open) _popup.OpenWhenReady();

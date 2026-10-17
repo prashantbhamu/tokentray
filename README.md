@@ -1,4 +1,4 @@
-# CodexBarWin local branch tests
+# CodexBarWin
 
 Baseline: current compact, opaque popup following the Windows app theme.
 Recovered tray sources reference the unchanged installed provider core assembly.
@@ -7,24 +7,23 @@ Build with .NET 8 SDK:
 
     dotnet publish source/Tray/CodexBarWin.csproj -c Release -o publish
 
-Branch builds must not overwrite Downloads/CodexBarWin.exe or change startup.
+The main executable starts directly in the live tray. A per-session mutex prevents duplicate instances.
 
-## design/side-meters
+## Outlined weekly bars
 
 Left vertical meter: Codex weekly usage, black. Right meter: Claude weekly usage, orange.
 Both meters fill from the bottom. The icon has no background tile: the unused
-space is transparent, and only the numeral and meters are drawn.
-The center number is the higher weekly usage, in that provider's color.
-Ties prefer Codex. Missing weekly data is not replaced with session usage.
+space is transparent. There are no numerals. Each full bar, including its gray unused
+area, has a thin outline in its provider's color. Missing weekly data is not replaced with session usage.
 
-The branch executable opens a visual test window by default. Each sample has
+`--icon-preview` opens an isolated visual test window. Each sample has
 a button to try a temporary test icon in the tray. Closing the preview window
 removes that test icon. No installed executable or startup entry is changed.
-`--tray-preview` explicitly starts the branch build with live provider usage.
+`--tray-preview` starts the live tray and opens its popup. Normal startup keeps the popup closed.
 
 Checks:
 
     dotnet run --project tests/RingTests.csproj -c Release -- test-results
 
-62 checks cover weekly selection, session exclusion, winner colors, missing
-values, ties, clamping, exact native image sizes, transparent empty space, and meter orientation.
+87 checks cover weekly selection, session exclusion, missing values, clamping,
+native image sizes, transparency, meter orientation, and full provider-colored outlines.

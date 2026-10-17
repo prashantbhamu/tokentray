@@ -60,11 +60,15 @@ internal static class Program
 		}
 		else
 		{
-			// Branch builds open the isolated visual test by default. Live tray
-			// behavior is opt-in and never changes the installed executable.
-			if (Array.IndexOf(args, "--tray-preview") >= 0)
-				Application.Run(new TrayAppContext(true));
-			else Application.Run(new IconPreviewForm());
+			if (Array.IndexOf(args, "--icon-preview") >= 0)
+			{
+				Application.Run(new IconPreviewForm());
+				return;
+			}
+			using var instance = new Mutex(true, "Local\\CodexBarWin.LiveTray", out bool firstInstance);
+			if (!firstInstance) return;
+			try { Application.Run(new TrayAppContext(Array.IndexOf(args, "--tray-preview") >= 0)); }
+			finally { instance.ReleaseMutex(); }
 		}
 	}
 
