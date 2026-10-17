@@ -68,6 +68,11 @@ Codex local fallbacks can still be read when network is disabled.
 ## History and rollback
 
 The provider-fix branch has been merged into `main` for version 1.2.0.
+Its merged branch ref was removed after verifying the source bundle. Obsolete
+previews, test/build outputs, and early working snapshots are recoverably archived
+under `outputs/archive/post-merge-cleanup-2026-10-17/` in the task workspace.
+Only the current release, source archive, reports, and verification evidence remain
+in the active outputs folder. See [cleanup.md](cleanup.md).
 Merged design branches and superseded previews are archived
 under the task's `outputs/archive/pre-cleanup-2026-10-17/`. The pre-cleanup Git bundle retains
 all design branch names and commits; `git bundle list-heads PATH` lists them. The known-working
