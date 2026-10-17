@@ -117,7 +117,7 @@ internal sealed class PopupForm : Form
         _updated = $"Updated {DateTime.Now:HH:mm} · usage shown";
         if (IsHandleCreated) MeasureAndResize();
         Invalidate();
-        if (_initialOpen) { _initialOpen = false; ToggleNearTray(); }
+        if (_initialOpen) { _initialOpen = false; ShowNearTray(); }
     }
 
     private void MeasureAndResize()
