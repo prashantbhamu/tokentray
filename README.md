@@ -1,6 +1,21 @@
-# CodexBarWin
+# TokenTray
 
 A compact Windows tray widget for Codex and Claude Code usage.
+
+## Download and run
+
+Download **TokenTray.exe** from the private repository's
+[latest release](https://github.com/prashantbhamu/tokentray/releases/latest).
+It is a self-contained, portable Windows x64 app; no installer or separate .NET
+runtime is required. Keep it in a permanent folder, run it, and use the tray
+menu's Settings to enable **Launch at login**. Each PC needs its own existing
+Codex/Claude login. Credentials are not included in the executable or repository.
+
+TokenTray is the distribution name. Version 1.2.0 retains the legacy CodexBarWin
+internal names, UI labels, settings/cache locations, and startup registration for
+compatibility with existing installations. It does not automatically download
+future updates. The release EXE is the tested v1.2.0 binary with a new filename,
+not a new build. Source build instructions below still produce CodexBarWin.exe.
 
 ## Provider security and freshness
 

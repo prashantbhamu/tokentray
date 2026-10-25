@@ -6,5 +6,16 @@ publish-provider-fixes/
 test-results/
 test-results*/
 artifacts/
+release-assets/
+.env
+.env.*
+!.env.example
+auth.json
+.credentials.json
+claude-token.json
+claude-token.dpapi
+*.pfx
+*.pem
+*.key
 *.user
 *.log
