@@ -1,4 +1,11 @@
-# TokenTray v1.3.0 (unreleased)
+# TokenTray v1.3.1 (unreleased)
+
+- The popup and tray no longer keep showing the last Claude reading after you sign out, after
+  your login expires or is rejected, or after switching accounts. A cached reading is now shown
+  only for a temporary failure (network, server, rate limit) of the same account, and is
+  labelled with its age.
+
+# TokenTray v1.3.0
 
 - Claude logins are now read-only: TokenTray no longer refreshes Claude OAuth tokens, which
   could rotate the refresh token and sign Claude Code out. An expired login is reported until

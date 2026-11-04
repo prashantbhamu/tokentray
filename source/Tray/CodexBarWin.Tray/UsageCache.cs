@@ -17,8 +17,10 @@ internal sealed class UsageCache
             _lastGood[snapshot.ProviderId] = snapshot;
             return snapshot;
         }
-        if (snapshot.Status is ProviderStatus.Unavailable or ProviderStatus.Error &&
-            _lastGood.TryGetValue(snapshot.ProviderId, out var cached))
+        // Only a transient failure (network, server, rate limit) for the same account may show the last reading.
+        // Unavailable means a login problem (signed out, expired, rejected), and another account's usage is never shown.
+        if (snapshot.Status == ProviderStatus.Error &&
+            _lastGood.TryGetValue(snapshot.ProviderId, out var cached) && cached.AccountKey == snapshot.AccountKey)
         {
             _stale.Add(snapshot.ProviderId);
             var asOf = cached.SourceUpdatedAt ?? (cached.Source is UsageDataSource.Live or UsageDataSource.Unknown ? cached.FetchedAt : null);

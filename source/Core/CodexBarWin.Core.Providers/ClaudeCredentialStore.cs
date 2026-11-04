@@ -64,6 +64,42 @@ internal sealed class ClaudeCredentialStore
         finally { if (bytes != null) CryptographicOperations.ZeroMemory(bytes); }
     }
 
+    /// <summary>
+    /// A short, non-reversible id for the account that owns <paramref name="credentials"/>. It prefers Claude Code's
+    /// account UUID from .claude.json (stable across token refreshes) and falls back to a hash of the login itself.
+    /// </summary>
+    public string AccountKey(ClaudeCredentials credentials)
+    {
+        string? account = ReadAccountUuid();
+        string basis = account != null ? "account:" + account : "login:" + (credentials.RefreshToken ?? credentials.AccessToken);
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(basis)))[..16];
+    }
+
+    private const long MaximumConfigBytes = 16 * 1024 * 1024;
+
+    private string? ReadAccountUuid()
+    {
+        // Claude Code keeps .claude.json inside CLAUDE_CONFIG_DIR when set, otherwise beside the .claude folder.
+        string claudeDir = Path.GetDirectoryName(_credentialsPath)!;
+        foreach (string path in new[] { Path.Combine(claudeDir, ".claude.json"), Path.Combine(Path.GetDirectoryName(claudeDir) ?? claudeDir, ".claude.json") })
+        {
+            try
+            {
+                if (!File.Exists(path)) continue;
+                using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                if (stream.Length <= 0 || stream.Length > MaximumConfigBytes) continue;
+                using var document = JsonDocument.Parse(stream);
+                if (document.RootElement.ValueKind == JsonValueKind.Object &&
+                    document.RootElement.TryGetProperty("oauthAccount", out var account) && account.ValueKind == JsonValueKind.Object &&
+                    account.TryGetProperty("accountUuid", out var uuid) && uuid.ValueKind == JsonValueKind.String &&
+                    !string.IsNullOrEmpty(uuid.GetString()))
+                    return uuid.GetString();
+            }
+            catch (Exception ex) when (IsCacheException(ex)) { }
+        }
+        return null;
+    }
+
     public ClaudeCredentials? ReadFromStore()
     {
         Warning = null;

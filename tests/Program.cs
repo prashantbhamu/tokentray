@@ -37,6 +37,7 @@ var output = args.Length > 0 ? args[0] : "test-results";
 Directory.CreateDirectory(output);
 ProviderRiskTests.Run(output, Check);
 ProviderRiskTests.RunReviewFixes(output, Check);
+ProviderRiskTests.RunCacheIntegration(output, Check);
 foreach (var workArea in new[] { new Rectangle(0, 0, 1920, 1032), new Rectangle(0, 0, 1920, 1020), new Rectangle(-1920, 0, 1920, 1032), new Rectangle(0, -1080, 1920, 1032) })
 {
     foreach (var size in new[] { new Size(284, 293), new Size(284, 450) })
