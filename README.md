@@ -87,3 +87,11 @@ Set `CODEXBARWIN_DEBUG=1` to write a diagnostic log to `%APPDATA%\CodexBarWin\de
 The project started as *CodexBarWin*. Internal namespaces, the settings folder
 (`%APPDATA%\CodexBarWin`), environment variables and the startup entry keep that name so
 existing installs keep their settings.
+
+## License
+
+TokenTray is released under the [MIT License](LICENSE).
+
+The release EXE also bundles third-party components under their own licenses: the .NET
+runtime (MIT), [FontAwesome.Sharp](https://github.com/awesome-inc/FontAwesome.Sharp) (MIT)
+and the Font Awesome Free icon font (SIL OFL 1.1).
