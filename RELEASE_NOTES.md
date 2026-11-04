@@ -1,4 +1,4 @@
-# TokenTray v1.3.1 (unreleased)
+# TokenTray v1.3.1
 
 - The popup and tray no longer keep showing the last Claude reading after you sign out, after
   your login expires or is rejected, or after switching accounts. A cached reading is now shown
