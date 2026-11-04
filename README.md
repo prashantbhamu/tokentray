@@ -34,12 +34,15 @@ and never sends your credentials anywhere except the provider's own usage endpoi
 - **Claude logins are never refreshed by TokenTray.** Refreshing would rotate the refresh token
   that Claude Code itself relies on and sign the CLI out. When the Claude login expires, the
   popup says so; opening Claude Code once refreshes it and TokenTray picks it up.
+- **Claude Code's current login is the only source.** Switching or signing out of accounts in
+  Claude Code is reflected immediately; TokenTray keeps no copy of the login that could show a
+  previous account's usage.
 - The Claude usage request identifies itself with a Claude Code user agent, because the
   endpoint is built for Claude Code.
 - If the Codex endpoint is unreachable or its login has expired, TokenTray falls back to Codex's
   local logs and labels that data with its original age (and the reason live data is missing).
-- A small Claude login cache is kept in `%APPDATA%\CodexBarWin\`, encrypted for your Windows
-  account with DPAPI. Nothing is ever written in plain text.
+- TokenTray writes no credentials. Versions before 1.3.0 kept a DPAPI-encrypted Claude login
+  cache in `%APPDATA%\CodexBarWin\`; 1.3.0 no longer reads or updates it, and it can be deleted.
 - Set `CODEXBARWIN_NO_NETWORK=1` (or `true`) to disable all network calls; the per-provider
   network switches in Settings do the same individually.
 
@@ -80,7 +83,6 @@ Set `CODEXBARWIN_DEBUG=1` to write a diagnostic log to `%APPDATA%\CodexBarWin\de
 - `tests/`: Windows regression tests.
 - `scripts/`: build/test and graceful-shutdown checks.
 - `design/`: design reference and comparison renders.
-- `docs/dev-notes/`: development and verification notes from earlier releases.
 
 The project started as *CodexBarWin*. Internal namespaces, the settings folder
 (`%APPDATA%\CodexBarWin`), environment variables and the startup entry keep that name so

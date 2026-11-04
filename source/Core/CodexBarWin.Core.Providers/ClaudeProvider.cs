@@ -20,7 +20,7 @@ public sealed class ClaudeProvider : IProvider
     public string DisplayName => "Claude Code";
 
     public ClaudeProvider(IClaudeUsageClient? usageClient = null, string? claudeDir = null, string? tokenStoreDir = null, IClaudeOAuthRefresher? refresher = null,
-        bool allowTokenRefresh = true, string? legacyTokenStoreDir = null)
+        bool allowTokenRefresh = false, string? legacyTokenStoreDir = null)
     {
         _usageClient = usageClient;
         _claudeDir = claudeDir ?? Path.Combine(UserProfile(), ".claude");

@@ -59,32 +59,46 @@ public sealed class CodexSessionReader
     internal static IEnumerable<string> LinesFromEnd(string path)
     {
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-        var buffer = new byte[ChunkSize];
-        byte[] carry = Array.Empty<byte>();
+        // Pieces of the line in progress, nearest the end of the file first. Each byte is read, scanned
+        // and copied once, so a record spanning many chunks costs linear time, not quadratic.
+        var tail = new List<ArraySegment<byte>>();
         long position = stream.Length;
         while (position > 0)
         {
             int count = (int)Math.Min(ChunkSize, position);
             position -= count;
+            var chunk = new byte[count];
             stream.Position = position;
-            stream.ReadExactly(buffer, 0, count);
-            var block = new byte[count + carry.Length];
-            Buffer.BlockCopy(buffer, 0, block, 0, count);
-            Buffer.BlockCopy(carry, 0, block, count, carry.Length);
-            int end = block.Length;
+            stream.ReadExactly(chunk, 0, count);
+            int end = count;
             // '\n' never occurs inside a multi-byte UTF-8 sequence, so splitting on the byte is safe.
-            for (int i = block.Length - 1; i >= 0; i--)
+            for (int i = count - 1; i >= 0; i--)
             {
-                if (block[i] != (byte)'\n') continue;
-                if (end - i - 1 > 0) yield return Line(block, i + 1, end);
+                if (chunk[i] != (byte)'\n') continue;
+                if (Join(new ArraySegment<byte>(chunk, i + 1, end - i - 1), tail) is { } line) yield return line;
+                tail.Clear();
                 end = i;
             }
-            carry = block.AsSpan(0, end).ToArray();
+            if (end > 0) tail.Add(new ArraySegment<byte>(chunk, 0, end));
         }
-        if (carry.Length > 0) yield return Line(carry, 0, carry.Length);
+        if (Join(ArraySegment<byte>.Empty, tail) is { } first) yield return first;
     }
 
-    private static string Line(byte[] bytes, int start, int end) => System.Text.Encoding.UTF8.GetString(bytes, start, end - start).TrimEnd('\r');
+    private static string? Join(ArraySegment<byte> head, List<ArraySegment<byte>> tail)
+    {
+        int length = head.Count;
+        foreach (var piece in tail) length += piece.Count;
+        if (length == 0) return null;
+        var bytes = new byte[length];
+        head.CopyTo(bytes, 0);
+        int offset = head.Count;
+        for (int i = tail.Count - 1; i >= 0; i--)
+        {
+            tail[i].CopyTo(bytes, offset);
+            offset += tail[i].Count;
+        }
+        return System.Text.Encoding.UTF8.GetString(bytes).TrimEnd('\r');
+    }
 
     internal static CodexSessionUsage? Parse(string? jsonLine)
     {

@@ -14,22 +14,28 @@ internal sealed class ClaudeTokenManager
     private ClaudeCredentials? _session;
     private bool _persistFailed;
 
-    public ClaudeTokenManager(ClaudeCredentialStore store, IClaudeOAuthRefresher refresher, bool allowRefresh = true)
+    // Refresh mode is opt-in and unused by the app: it rotates tokens Claude Code relies on, and it picks
+    // between CLI, cache and memory by expiry alone, so it cannot tell when the CLI switched accounts.
+    public ClaudeTokenManager(ClaudeCredentialStore store, IClaudeOAuthRefresher refresher, bool allowRefresh = false)
     { _store = store; _refresher = refresher; _allowRefresh = allowRefresh; }
 
     public ClaudeTokenResult GetFreshCredentials()
     {
+        if (!_allowRefresh)
+        {
+            // Claude Code's current login is the only authority. It defines the account, so a longer-lived
+            // token cached for a previous account can never win, and nothing is copied into a cache.
+            var current = _store.ReadFromCli();
+            if (current == null) return new(null, "No reusable local login; run Claude to log in.");
+            if (!current.HasProfileScope) return new(null, "Login lacks user:profile scope; log in again with Claude.");
+            if (current.ExpiresAt.HasValue && current.ExpiresAt.Value <= DateTimeOffset.UtcNow) return new(null, ExpiredReadOnly);
+            return new(current, null);
+        }
         var cli = _store.ReadFromCli();
         var stored = _store.ReadFromStore();
         var selected = ClaudeCredentialStore.Freshest(ClaudeCredentialStore.Freshest(cli, stored), _session);
         if (selected == null) return new(null, "No reusable local login; run Claude to log in.");
         if (!selected.HasProfileScope) return new(null, "Login lacks user:profile scope; log in again with Claude.");
-        if (!_allowRefresh)
-        {
-            if (selected.ExpiresAt.HasValue && selected.ExpiresAt.Value <= DateTimeOffset.UtcNow)
-                return new(null, ExpiredReadOnly);
-            return Remember(selected);
-        }
         if (!NeedsRefresh(selected)) return Remember(selected);
         var refreshed = TryRefresh(selected);
         if (refreshed.Credentials != null) return refreshed;
