@@ -243,6 +243,8 @@ internal static class ProviderRiskTests
         var transient = Cycle();
         check(ShowsClaude(transient) && transient[1].Source == UsageDataSource.Cached && transient[1].Message!.Contains("showing"),
             "Same-account transient failure keeps the labelled last reading");
+        check(transient[1].AccountKey is { Length: 16 } && !JsonSerializer.Serialize(transient).Contains("AccountKey"),
+            "The account key stays in memory and is never written to --status JSON");
 
         Good();
         File.Delete(Path.Combine(cli, ".credentials.json"));
