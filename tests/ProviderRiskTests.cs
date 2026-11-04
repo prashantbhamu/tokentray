@@ -200,14 +200,102 @@ internal static class ProviderRiskTests
     private sealed class FakeClaudeUsage : IClaudeUsageClient
     {
         public bool UnauthorizedFirst;
+        public ClaudeFetchErrorKind? Fail;
         public int Calls;
         public string? LastToken;
         public ClaudeUsageResponse Fetch(string accessToken)
         {
             Calls++; LastToken = accessToken;
             if (UnauthorizedFirst && Calls == 1) throw new ClaudeFetchException(ClaudeFetchErrorKind.Unauthorized, "Synthetic unauthorized response.");
+            if (Fail is { } kind) throw new ClaudeFetchException(kind, "Synthetic " + kind + " failure.");
             return new(new(20, DateTimeOffset.UtcNow.AddHours(2).ToString("O")), new(19, DateTimeOffset.UtcNow.AddDays(5).ToString("O")), null, null);
         }
+    }
+
+    // Full provider -> cache -> tray icon/tooltip -> popup path: the last reading may survive a transient failure
+    // of the same account, but never a sign-out, an expired/rejected login, or an account switch.
+    public static void RunCacheIntegration(string output, Action<bool, string> check)
+    {
+        string cli = Path.Combine(output, "cache-integration-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(cli);
+        void Login(string account, string token)
+        {
+            File.WriteAllText(Path.Combine(cli, ".claude.json"), JsonSerializer.Serialize(new { oauthAccount = new { accountUuid = account } }));
+            File.WriteAllText(Path.Combine(cli, ".credentials.json"), "{\"claudeAiOauth\":" + JsonSerializer.Serialize(new
+            {
+                accessToken = "fake-access-" + token,
+                refreshToken = "fake-refresh-" + token,
+                expiresAt = DateTimeOffset.UtcNow.AddHours(2).ToUnixTimeMilliseconds(),
+                scopes = new[] { "user:profile" },
+                subscriptionType = "pro"
+            }) + "}");
+        }
+        var usage = new FakeClaudeUsage();
+        var provider = new ClaudeProvider(usage, cli, Path.Combine(cli, "widget-cache"));
+        var codex = new UsageSnapshot("codex", "Codex", "Pro", new[] { new Meter("Weekly", 40, 100, "%") }, Array.Empty<ResetWindow>(), ProviderStatus.Ok, null, DateTimeOffset.UtcNow);
+        var cache = new UsageCache();
+        UsageSnapshot[] Cycle() => new[] { cache.Apply(codex), cache.Apply(provider.Refresh()) };
+        UsageSnapshot[] Good() { usage.Fail = null; var shown = Cycle(); check(shown[1].Status == ProviderStatus.Ok, "Integration fixture starts from a live Claude reading"); return shown; }
+        bool ShowsClaude(UsageSnapshot[] shown) => shown[1].Meters.Count > 0 || WeeklyIconState.FromSnapshots(shown).Claude != null;
+
+        Login("account-a", "a"); Good();
+        usage.Fail = ClaudeFetchErrorKind.Server;
+        var transient = Cycle();
+        check(ShowsClaude(transient) && transient[1].Source == UsageDataSource.Cached && transient[1].Message!.Contains("showing"),
+            "Same-account transient failure keeps the labelled last reading");
+
+        Good();
+        File.Delete(Path.Combine(cli, ".credentials.json"));
+        var signedOut = Cycle();
+        check(!ShowsClaude(signedOut) && signedOut[1].Status == ProviderStatus.Unavailable && WeeklyIconState.FromSnapshots(signedOut).Tooltip.Contains("Claude unavailable"),
+            "Sign-out clears Claude from popup data, tray bar and tooltip");
+
+        Login("account-a", "a"); Good();
+        usage.Fail = ClaudeFetchErrorKind.Unauthorized;
+        check(!ShowsClaude(Cycle()), "A rejected login never falls back to cached usage");
+
+        Login("account-a", "a"); Good();
+        Login("account-b", "b"); usage.Fail = ClaudeFetchErrorKind.Network;
+        var switched = Cycle();
+        check(!ShowsClaude(switched) && switched[1].Status == ProviderStatus.Error && usage.LastToken == "fake-access-b",
+            "Account switch plus fetch failure never shows the previous account's usage");
+
+        Login("account-b", "b2"); Good();
+        Login("account-b", "b3"); usage.Fail = ClaudeFetchErrorKind.RateLimited;
+        check(ShowsClaude(Cycle()), "A Claude Code token refresh on the same account still allows the cached fallback");
+
+        // Render what the tray would hand the popup: no Claude ring for the switched account, a ring for the same account.
+        Exception? failure = null;
+        var ui = new System.Threading.Thread(() =>
+        {
+            try
+            {
+                using var popup = new PopupForm(() => { });
+                popup.Location = new System.Drawing.Point(-4000, -4000);
+                _ = popup.Handle;
+                bool RendersClaudeRing(UsageSnapshot[] shown)
+                {
+                    popup.Render(shown);
+                    using var shot = new System.Drawing.Bitmap(popup.Width, popup.Height);
+                    popup.DrawToBitmap(shot, new System.Drawing.Rectangle(System.Drawing.Point.Empty, shot.Size));
+                    var c = TrayIconRenderer.ClaudeColor; int n = 0;
+                    for (int y = 0; y < shot.Height; y++)
+                        for (int x = 18; x < 82; x++)
+                        {
+                            var p = shot.GetPixel(x, y);
+                            if (Math.Abs(p.R - c.R) < 5 && Math.Abs(p.G - c.G) < 5 && Math.Abs(p.B - c.B) < 5) n++;
+                        }
+                    return n > 30;
+                }
+                check(!RendersClaudeRing(switched), "Popup draws no Claude usage ring after an account switch failure");
+                check(!RendersClaudeRing(signedOut), "Popup draws no Claude usage ring after sign-out");
+                check(RendersClaudeRing(transient), "Popup still draws the cached ring for a same-account transient failure");
+            }
+            catch (Exception ex) { failure = ex; }
+        });
+        ui.SetApartmentState(System.Threading.ApartmentState.STA);
+        ui.Start(); ui.Join();
+        if (failure != null) throw failure;
     }
     private sealed class FakeCodexUsage : ICodexUsageClient
     {

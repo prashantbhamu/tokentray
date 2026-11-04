@@ -59,6 +59,12 @@ public sealed class ClaudeProvider : IProvider
             Diag.Log("claude: no usable creds → " + freshCredentials.Error);
             return UsageSnapshot.ForState(Id, DisplayName, ProviderStatus.Unavailable, freshCredentials.Error, _store.ReadFromCli()?.SubscriptionType);
         }
+        // Tag every result with the login's account so the tray cache can't show one account's usage for another.
+        return FetchFor(freshCredentials) with { AccountKey = _store.AccountKey(freshCredentials.Credentials) };
+    }
+
+    private UsageSnapshot FetchFor(ClaudeTokenResult freshCredentials)
+    {
         string subscriptionType = freshCredentials.Credentials.SubscriptionType;
         try
         {
