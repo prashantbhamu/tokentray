@@ -20,12 +20,13 @@ public sealed class ClaudeProvider : IProvider
     public string DisplayName => "Claude Code";
 
     public ClaudeProvider(IClaudeUsageClient? usageClient = null, string? claudeDir = null, string? tokenStoreDir = null, IClaudeOAuthRefresher? refresher = null,
-        bool allowTokenRefresh = true, string? legacyTokenStoreDir = null)
+        bool allowTokenRefresh = false, string? legacyTokenStoreDir = null)
     {
         _usageClient = usageClient;
         _claudeDir = claudeDir ?? Path.Combine(UserProfile(), ".claude");
         string storeDir = tokenStoreDir ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CodexBarWin");
-        _store = new ClaudeCredentialStore(_claudeDir, storeDir, legacyTokenStoreDir, retireLegacy: allowTokenRefresh);
+        // The store itself refuses to retire a legacy cache that belongs to another directory (preview).
+        _store = new ClaudeCredentialStore(_claudeDir, storeDir, legacyTokenStoreDir);
         if (usageClient != null)
         {
             _tokenManager = new ClaudeTokenManager(_store, refresher ?? new ClaudeOAuthRefresher(), allowTokenRefresh);

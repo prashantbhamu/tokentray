@@ -1,94 +1,89 @@
 # TokenTray
 
-A compact Windows tray widget for Codex and Claude Code usage.
+A compact Windows tray widget that shows your Codex and Claude Code usage limits.
+
+- **Tray icon:** two vertical bars, black for Codex and orange for Claude, filling with weekly usage.
+  Hover for the exact percentages.
+- **Popup:** click the icon for session and weekly rings with reset countdowns, in the Windows
+  light or dark theme. F5 or the refresh button updates it; Escape closes it.
+- Single instance, no taskbar button, optional launch at login.
+
+> **Unofficial.** TokenTray is not affiliated with or endorsed by OpenAI or Anthropic. It reads
+> usage from the same undocumented endpoints the official tools use, which can change or stop
+> working at any time. Use it at your own risk.
 
 ## Download and run
 
-Download **TokenTray.exe** from the private repository's
-[latest release](https://github.com/prashantbhamu/tokentray/releases/latest).
-It is a self-contained, portable Windows x64 app; no installer or separate .NET
-runtime is required. Keep it in a permanent folder, run it, and use the tray
-menu's Settings to enable **Launch at login**. Each PC needs its own existing
-Codex/Claude login. Credentials are not included in the executable or repository.
+Download **TokenTray.exe** from the [latest release](https://github.com/prashantbhamu/tokentray/releases/latest).
+It is a self-contained, portable Windows x64 app; no installer or .NET runtime is needed. Keep it in
+a permanent folder, run it, and turn on **Launch at login** from the tray menu's Settings if you want.
+The executable is unsigned, so Windows SmartScreen may warn on first run.
 
-TokenTray is the distribution name. Version 1.2.0 retains the legacy CodexBarWin
-internal names, UI labels, settings/cache locations, and startup registration for
-compatibility with existing installations. It does not automatically download
-future updates. The release EXE is the tested v1.2.0 binary with a new filename,
-not a new build. Source build instructions below still produce CodexBarWin.exe.
+You must already be signed in to Codex and/or Claude Code on the same PC.
 
-## Provider security and freshness
+## How it gets your usage, and what it touches
 
-Version 1.2.0 builds the provider library from `source/Core/`, encrypts the widget's
-Claude credential cache with Windows DPAPI, and clearly labels Codex local fallback
-data with its original age. See [provider-fixes.md](provider-fixes.md) for evidence.
-Normal launches enable automatic token refresh. `--popup-preview` remains isolated
-and never rotates the main application's tokens or changes startup settings.
+TokenTray only **reads** the logins the official CLIs already store. It never asks for a password
+and never sends your credentials anywhere except the provider's own usage endpoint over HTTPS.
 
-- Tray: outlined vertical weekly meters, black Codex left and orange Claude right, no numerals or backing tile.
-- Popup: 284px-wide circular usage meters, fully opaque, matching the Windows light/dark app theme.
-- Click the tray icon to toggle the popup; F5 or its refresh button updates usage; Escape dismisses it.
-- No extra taskbar button. One live instance per Windows session.
-- Windows startup uses a single current-user Run entry. Normal startup leaves the popup closed.
+| Provider | Reads | Calls |
+| --- | --- | --- |
+| Codex | `%USERPROFILE%\.codex\auth.json`, session logs under `.codex\sessions`, `logs_2.sqlite` | `https://chatgpt.com/backend-api/wham/usage` |
+| Claude Code | `%USERPROFILE%\.claude\.credentials.json` | `https://api.anthropic.com/api/oauth/usage` |
 
-## Build and verify
+- **Claude logins are never refreshed by TokenTray.** Refreshing would rotate the refresh token
+  that Claude Code itself relies on and sign the CLI out. When the Claude login expires, the
+  popup says so; opening Claude Code once refreshes it and TokenTray picks it up.
+- **Claude Code's current login is the only source.** Switching or signing out of accounts in
+  Claude Code is reflected immediately; TokenTray keeps no copy of the login that could show a
+  previous account's usage.
+- The Claude usage request identifies itself with a Claude Code user agent, because the
+  endpoint is built for Claude Code.
+- If the Codex endpoint is unreachable or its login has expired, TokenTray falls back to Codex's
+  local logs and labels that data with its original age (and the reason live data is missing).
+- TokenTray writes no credentials. Versions before 1.3.0 kept a DPAPI-encrypted Claude login
+  cache in `%APPDATA%\CodexBarWin\`; 1.3.0 no longer reads or updates it, and it can be deleted.
+- Set `CODEXBARWIN_NO_NETWORK=1` (or `true`) to disable all network calls; the per-provider
+  network switches in Settings do the same individually.
 
-Requires Windows and .NET 8 SDK. This checkout was verified using SDK 8.0.426.
+## Build and test
+
+Requires Windows and the .NET 8 SDK.
 
 ```powershell
 dotnet restore source/Tray/CodexBarWin.csproj
-./scripts/Test-Widget.ps1 -DotNet 'C:/path/to/dotnet.exe'
+./scripts/Test-Widget.ps1
 dotnet publish source/Tray/CodexBarWin.csproj -c Release -o publish
-./scripts/Test-Lifecycle.ps1 -Executable ./publish/CodexBarWin.exe
+./scripts/Test-Lifecycle.ps1 -Executable ./publish/TokenTray.exe
 ```
 
-The test script checks formatting, a warning-free Release build, and 175 assertions.
-Tests cover weekly-only selection, native tray sizes, provider colors, transparency,
-popup/theme states, error bounds, refresh behavior, settings persistence, network policy,
-startup-path validation, cached-data labeling, and DPI-aware settings layout.
+`Test-Widget.ps1` checks formatting, builds Release with warnings as errors, and runs the
+regression suite (tray rendering, popup layout and themes, refresh and caching behavior,
+settings, startup registration, and the provider/credential handling above). All credentials
+used by the tests are fake.
 
-Actual 1920 x 1080 Windows display tests passed at 100% (96 DPI, 16px tray) and 125%
-(120 DPI, 20px tray). The original 150% setting was restored. The popup intentionally
-retains its compact pixel dimensions; the settings dialog sizes to its text and controls.
-See [verification.md](verification.md) and [code-review.md](code-review.md).
-
-## Command-line controls
+## Command line
 
 ```text
-CodexBarWin.exe --open       Open the running widget's popup, without creating a second icon
-CodexBarWin.exe --quit       Gracefully close the live widget
-CodexBarWin.exe --popup-preview   Isolated live preview, no settings/startup changes
-CodexBarWin.exe --popup-preview --quit   Gracefully close the isolated preview
-CodexBarWin.exe --status result.json     Fetch diagnostics using the configured provider/network policy
-CodexBarWin.exe --shot popup.png --sample-data --preview-light
-CodexBarWin.exe --shot popup-dark.png --sample-data --preview-dark
-CodexBarWin.exe --shot-settings settings.png
+TokenTray.exe --open                    Open the running widget's popup
+TokenTray.exe --quit                    Close the running widget
+TokenTray.exe --popup-preview           Isolated preview instance (no settings or startup changes)
+TokenTray.exe --status result.json      Write current usage diagnostics as JSON
+TokenTray.exe --shot popup.png --sample-data [--preview-light|--preview-dark]
+TokenTray.exe --shot-settings settings.png
 ```
 
-Diagnostics never change Windows display settings. `CODEXBARWIN_NO_NETWORK=1` (or `true`,
-case-insensitive) disables network fetches for both live mode and diagnostics. Existing
-Codex local fallbacks can still be read when network is disabled.
+Set `CODEXBARWIN_DEBUG=1` to write a diagnostic log to `%APPDATA%\CodexBarWin\debug.log`
+(status messages only; no tokens are logged).
 
 ## Code layout
 
-- `source/Tray/CodexBarWin.Tray/`: native popup, tray rendering, refresh lifecycle, settings,
-  startup registration, provider construction, caching, and diagnostics.
-- `source/Core/`: source-built providers, protected Claude cache, and usage provenance.
-- `bundle/CodexBarWin.Core.dll`: original provider library, retained unchanged for rollback;
-  this branch no longer references it.
-- `tests/WidgetTests.csproj`: native Windows regression tests; test artifacts are ignored by Git.
-- `scripts/`: reproducible checks and graceful-shutdown smoke test.
-- `design/` and `design-qa.md`: supplied reference and reference-comparison evidence.
+- `source/Tray/`: tray icon, popup, settings, startup registration, refresh lifecycle, diagnostics.
+- `source/Core/`: Codex and Claude providers, credential store, usage parsing.
+- `tests/`: Windows regression tests.
+- `scripts/`: build/test and graceful-shutdown checks.
+- `design/`: design reference and comparison renders.
 
-## History and rollback
-
-The provider-fix branch has been merged into `main` for version 1.2.0.
-Its merged branch ref was removed after verifying the source bundle. Obsolete
-previews, test/build outputs, and early working snapshots are recoverably archived
-under `outputs/archive/post-merge-cleanup-2026-10-17/` in the task workspace.
-Only the current release, source archive, reports, and verification evidence remain
-in the active outputs folder. See [cleanup.md](cleanup.md).
-Merged design branches and superseded previews are archived
-under the task's `outputs/archive/pre-cleanup-2026-10-17/`. The pre-cleanup Git bundle retains
-all design branch names and commits; `git bundle list-heads PATH` lists them. The known-working
-pre-cleanup executable is preserved there too. No authentication files or user documents were removed.
+The project started as *CodexBarWin*. Internal namespaces, the settings folder
+(`%APPDATA%\CodexBarWin`), environment variables and the startup entry keep that name so
+existing installs keep their settings.

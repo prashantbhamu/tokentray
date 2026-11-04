@@ -2,12 +2,24 @@
  <PropertyGroup>
   <OutputType>WinExe</OutputType><TargetFramework>net8.0-windows</TargetFramework>
   <UseWindowsForms>true</UseWindowsForms><Nullable>enable</Nullable>
-  <AssemblyName>CodexBarWin</AssemblyName><Version>1.2.0</Version>
+  <AssemblyName>TokenTray</AssemblyName><Product>TokenTray</Product><Version>1.3.0</Version>
   <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   <RuntimeIdentifier>win-x64</RuntimeIdentifier><SelfContained>true</SelfContained>
   <PublishSingleFile>true</PublishSingleFile><EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
   <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
  </PropertyGroup>
+ <!-- The self-contained EXE bundles the .NET runtime. Pin a patched servicing release instead of whatever
+      the build SDK happens to know (8.0.28 and earlier have published advisories; fixed in 8.0.33). -->
+ <PropertyGroup>
+  <BundledRuntimeVersion>8.0.33</BundledRuntimeVersion>
+  <TargetLatestRuntimePatch>true</TargetLatestRuntimePatch>
+ </PropertyGroup>
+ <Target Name="PinBundledRuntime" BeforeTargets="ProcessFrameworkReferences">
+  <ItemGroup>
+   <KnownFrameworkReference Update="@(KnownFrameworkReference)" Condition="'%(KnownFrameworkReference.TargetFramework)' == 'net8.0'"
+     LatestRuntimeFrameworkVersion="$(BundledRuntimeVersion)" />
+  </ItemGroup>
+ </Target>
  <ItemGroup>
   <PackageReference Include="FontAwesome.Sharp" Version="6.6.0" />
   <ProjectReference Include="../Core/CodexBarWin.Core.csproj" />

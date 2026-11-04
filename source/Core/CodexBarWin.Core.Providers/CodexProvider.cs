@@ -55,6 +55,7 @@ public sealed class CodexProvider : IProvider
         {
             return UsageSnapshot.ForState(Id, DisplayName, ProviderStatus.NotInstalled, _codexDir + " not found");
         }
+        string? liveFailure = null;
         if (_usageClient == null)
         {
             Diag.Log("codex: usage client not configured (network off) → local log");
@@ -70,6 +71,7 @@ public sealed class CodexProvider : IProvider
                 {
                     return BuildFromApi(codexUsageApi);
                 }
+                liveFailure = _usageClient.LastFailure;
                 Diag.Log("codex: API returned null → falling back to local log");
             }
             else
@@ -77,6 +79,13 @@ public sealed class CodexProvider : IProvider
                 Diag.Log("codex: auth.json token unreadable → local log");
             }
         }
+        var local = RefreshLocal();
+        // Say why live data is missing (e.g. an expired login) instead of silently showing older local data.
+        return liveFailure == null ? local : local with { Message = local.Message == null ? liveFailure : liveFailure + " · " + local.Message };
+    }
+
+    private UsageSnapshot RefreshLocal()
+    {
         CodexSessionUsage codexSessionUsage = new CodexSessionReader(SessionsPath).ReadLatestUsage();
         if ((object)codexSessionUsage != null)
         {
@@ -94,9 +103,9 @@ public sealed class CodexProvider : IProvider
         }
         List<Meter> meters = new List<Meter>();
         List<ResetWindow> resets = new List<ResetWindow>();
-        AddWindow(meters, resets, "Session", codexRateLimits.Primary);
-        AddWindow(meters, resets, "Weekly", codexRateLimits.Secondary);
         DateTimeOffset? sourceUpdatedAt = LogTimestamp(codexLogEntry?.TimestampUnix);
+        AddWindow(meters, resets, "Session", codexRateLimits.Primary, sourceUpdatedAt);
+        AddWindow(meters, resets, "Weekly", codexRateLimits.Secondary, sourceUpdatedAt);
         string message = LocalNote(sourceUpdatedAt) + (codexRateLimits.LimitReached ? " · limit reached" : "");
         return new UsageSnapshot(Id, DisplayName, ReadPlanHint(), meters, resets, ProviderStatus.Ok, message, DateTimeOffset.UtcNow,
             UsageDataSource.LocalLog, sourceUpdatedAt);
@@ -106,8 +115,8 @@ public sealed class CodexProvider : IProvider
     {
         List<Meter> meters = new List<Meter>();
         List<ResetWindow> resets = new List<ResetWindow>();
-        AddWindow(meters, resets, "Session", usage.Primary);
-        AddWindow(meters, resets, "Weekly", usage.Secondary);
+        AddWindow(meters, resets, "Session", usage.Primary, usage.SourceUpdatedAt);
+        AddWindow(meters, resets, "Weekly", usage.Secondary, usage.SourceUpdatedAt);
         return new UsageSnapshot(Id, DisplayName, PlanLabel(usage.PlanType) ?? ReadPlanHint(), meters, resets, ProviderStatus.Ok,
             LocalNote(usage.SourceUpdatedAt), DateTimeOffset.UtcNow, UsageDataSource.LocalSession, usage.SourceUpdatedAt);
     }
@@ -132,7 +141,7 @@ public sealed class CodexProvider : IProvider
         {
             string label = WindowLabel(w.WindowMinutes) ?? fallback;
             meters.Add(new Meter(label, w.UsedPercent, 100.0, "%"));
-            resets.Add(new ResetWindow(label, w.ResetsAt));
+            if (w.ResetsAt is { } resetsAt) resets.Add(new ResetWindow(label, resetsAt));
         }
     }
 
@@ -174,13 +183,13 @@ public sealed class CodexProvider : IProvider
         }
     }
 
-    private static void AddWindow(List<Meter> meters, List<ResetWindow> resets, string label, CodexWindow? w)
+    private static void AddWindow(List<Meter> meters, List<ResetWindow> resets, string label, CodexWindow? w, DateTimeOffset? recordedAt)
     {
         if ((object)w != null)
         {
             string label2 = WindowLabel(w.WindowMinutes) ?? label;
             meters.Add(new Meter(label2, w.UsedPercent, 100.0, "%"));
-            resets.Add(new ResetWindow(label2, w.ResetsAt));
+            if (w.ResetsAt(recordedAt) is { } resetsAt) resets.Add(new ResetWindow(label2, resetsAt));
         }
     }
 

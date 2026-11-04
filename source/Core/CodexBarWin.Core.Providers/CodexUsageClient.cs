@@ -18,8 +18,11 @@ public sealed class CodexUsageClient : ICodexUsageClient
 
     private static DateTimeOffset _blockedUntil = DateTimeOffset.MinValue;
 
+    public string? LastFailure { get; private set; }
+
     public CodexUsageApi? Fetch(string accessToken, string? accountId)
     {
+        LastFailure = null;
         if (DateTimeOffset.UtcNow < _blockedUntil)
         {
             Diag.Log($"codex: in cooldown until {_blockedUntil:HH:mm:ss}");
@@ -27,10 +30,10 @@ public sealed class CodexUsageClient : ICodexUsageClient
         }
         try
         {
-            using HttpRequestMessage httpRequestMessage = new HttpRequestMessage(HttpMethod.Get, "https://chatgpt.com/backend-api/wham/usage");
+            using HttpRequestMessage httpRequestMessage = new HttpRequestMessage(HttpMethod.Get, UsageUrl);
             httpRequestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
             httpRequestMessage.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-            httpRequestMessage.Headers.UserAgent.ParseAdd("CodexBarWin");
+            httpRequestMessage.Headers.UserAgent.ParseAdd("TokenTray");
             if (!string.IsNullOrEmpty(accountId))
             {
                 httpRequestMessage.Headers.TryAddWithoutValidation("ChatGPT-Account-Id", accountId);
@@ -41,6 +44,10 @@ public sealed class CodexUsageClient : ICodexUsageClient
                 _blockedUntil = DateTimeOffset.UtcNow + Cooldown;
                 Diag.Log("codex: HTTP 429 → cooldown 5m");
                 return null;
+            }
+            if (httpResponseMessage.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+            {
+                LastFailure = "Codex login expired; run codex to sign in again";
             }
             if (!httpResponseMessage.IsSuccessStatusCode)
             {

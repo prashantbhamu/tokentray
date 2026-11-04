@@ -55,7 +55,9 @@ internal sealed class ClaudeCredentialStore
             bytes = ReadBounded(_credentialsPath);
             if (bytes == null) return null;
             using var document = JsonDocument.Parse(bytes);
-            return document.RootElement.TryGetProperty("claudeAiOauth", out var oauth) && oauth.ValueKind == JsonValueKind.Object
+            // Valid JSON such as [] or null would make TryGetProperty throw outside the cache exception filter.
+            return document.RootElement.ValueKind == JsonValueKind.Object &&
+                document.RootElement.TryGetProperty("claudeAiOauth", out var oauth) && oauth.ValueKind == JsonValueKind.Object
                 ? FromToken(JsonSerializer.Deserialize<StoredToken>(oauth.GetRawText())) : null;
         }
         catch (Exception ex) when (IsCacheException(ex)) { return null; }

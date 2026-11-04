@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using CodexBarWin.Core.Models;
 using CodexBarWin.Core.Providers;
+using CodexBarWin.Core.Readers;
 using CodexBarWin.Tray;
 using Microsoft.Data.Sqlite;
 
@@ -100,21 +101,21 @@ internal static class ProviderRiskTests
         string refreshCli = Area("refresh-cli"), refreshCache = Area("refresh-cache");
         string expiredCliBefore = Cli(refreshCli, expired);
         var refresh = new FakeRefresher(); var usage = new FakeClaudeUsage();
-        var provider = new ClaudeProvider(usage, refreshCli, refreshCache, refresh);
+        var provider = new ClaudeProvider(usage, refreshCli, refreshCache, refresh, allowTokenRefresh: true);
         var live = provider.Refresh();
         check(live.Status == ProviderStatus.Ok && live.Source == UsageDataSource.Live && live.SourceUpdatedAt.HasValue, "Expired login refresh still yields live Claude usage");
         check(refresh.Calls == 1 && usage.LastToken == "fake-rotated-access", "Live fetch uses the refreshed access token");
         check(File.Exists(Path.Combine(refreshCache, "claude-token.dpapi")) && !File.Exists(Path.Combine(refreshCache, "claude-token.json")), "Refreshed login is persisted only as DPAPI");
         check(File.ReadAllText(Path.Combine(refreshCli, ".credentials.json")) == expiredCliBefore, "Token refresh does not overwrite CLI-owned credentials");
         var restartedRefresh = new FakeRefresher();
-        check(new ClaudeProvider(new FakeClaudeUsage(), refreshCli, refreshCache, restartedRefresh).Refresh().Status == ProviderStatus.Ok && restartedRefresh.Calls == 0, "Restart reuses protected refreshed login without refreshing again");
+        check(new ClaudeProvider(new FakeClaudeUsage(), refreshCli, refreshCache, restartedRefresh, allowTokenRefresh: true).Refresh().Status == ProviderStatus.Ok && restartedRefresh.Calls == 0, "Restart reuses protected refreshed login without refreshing again");
 
         string retryCli = Area("retry-cli"), retryCache = Area("retry-cache"); Cli(retryCli, credentials);
         var retryRefresh = new FakeRefresher(); var retryUsage = new FakeClaudeUsage { UnauthorizedFirst = true };
-        check(new ClaudeProvider(retryUsage, retryCli, retryCache, retryRefresh).Refresh().Status == ProviderStatus.Ok && retryUsage.Calls == 2 && retryRefresh.Calls == 1, "401 recovery refreshes once and retries live usage");
+        check(new ClaudeProvider(retryUsage, retryCli, retryCache, retryRefresh, allowTokenRefresh: true).Refresh().Status == ProviderStatus.Ok && retryUsage.Calls == 2 && retryRefresh.Calls == 1, "401 recovery refreshes once and retries live usage");
         string memoryCli = Area("memory-cli"); Cli(memoryCli, expired);
         var memoryRefresh = new FakeRefresher();
-        var memoryManager = new ClaudeTokenManager(new ClaudeCredentialStore(memoryCli, Area("memory-cache"), protector: new FailingProtector()), memoryRefresh);
+        var memoryManager = new ClaudeTokenManager(new ClaudeCredentialStore(memoryCli, Area("memory-cache"), protector: new FailingProtector()), memoryRefresh, allowRefresh: true);
         var memoryFirst = memoryManager.GetFreshCredentials(); var memorySecond = memoryManager.GetFreshCredentials();
         check(memoryFirst.Credentials != null && memoryFirst.Error != null && memorySecond.Credentials != null && memoryRefresh.Calls == 1, "Cache write failure preserves usable refreshed login in memory with warning");
 
@@ -126,7 +127,7 @@ internal static class ProviderRiskTests
         var noScope = credentials with { Scopes = Array.Empty<string>(), ExpiresAt = DateTimeOffset.UtcNow.AddDays(1) };
         string scopeCli = Area("scope-cli"), scopeCache = Area("scope-cache"); Cli(scopeCli, noScope);
         new ClaudeCredentialStore(scopeCli, scopeCache).WriteToStore(credentials);
-        check(new ClaudeProvider(new FakeClaudeUsage(), scopeCli, scopeCache, new FakeRefresher()).Refresh().Status == ProviderStatus.Ok, "A valid scoped stored login wins over an unscoped CLI token");
+        check(new ClaudeProvider(new FakeClaudeUsage(), scopeCli, scopeCache, new FakeRefresher(), allowTokenRefresh: true).Refresh().Status == ProviderStatus.Ok, "A valid scoped stored login wins over an unscoped CLI token");
 
         // Source timestamps come from usage records, never file modification or fetch time.
         var old = DateTimeOffset.UtcNow.AddDays(-1);
@@ -212,5 +213,138 @@ internal static class ProviderRiskTests
     {
         public int Calls;
         public CodexUsageApi? Fetch(string accessToken, string? accountId) { Calls++; return new("pro", null, new(42, DateTimeOffset.UtcNow.AddDays(5).ToUnixTimeSeconds(), 604800)); }
+    }
+    private sealed class FailingCodexUsage : ICodexUsageClient
+    {
+        public string? LastFailure => "Synthetic expired login";
+        public CodexUsageApi? Fetch(string accessToken, string? accountId) => null;
+    }
+
+    // Regression checks for the pre-public review fixes.
+    public static void RunReviewFixes(string output, Action<bool, string> check)
+    {
+        string root = Path.Combine(output, "review-fixtures-" + Guid.NewGuid().ToString("N"));
+        string Area(string name) { string path = Path.Combine(root, name); Directory.CreateDirectory(path); return path; }
+        string Cli(string directory, ClaudeCredentials c)
+        {
+            string json = "{\"claudeAiOauth\":" + JsonSerializer.Serialize(new
+            {
+                accessToken = c.AccessToken,
+                refreshToken = c.RefreshToken,
+                expiresAt = c.ExpiresAt?.ToUnixTimeMilliseconds(),
+                scopes = c.Scopes,
+                subscriptionType = c.SubscriptionType
+            }) + "}";
+            File.WriteAllText(Path.Combine(directory, ".credentials.json"), json);
+            return json;
+        }
+        var valid = new ClaudeCredentials("fake-access-only", "fake-refresh-only", DateTimeOffset.UtcNow.AddHours(2), new[] { "user:profile" }, "pro");
+
+        // Read-only Claude mode never rotates tokens, so Claude Code's own refresh token stays valid.
+        string readOnlyCli = Area("readonly-cli"); string before = Cli(readOnlyCli, valid with { ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(-5) });
+        var readOnlyRefresh = new FakeRefresher();
+        var expired = new ClaudeProvider(new FakeClaudeUsage(), readOnlyCli, Area("readonly-cache"), readOnlyRefresh, allowTokenRefresh: false).Refresh();
+        check(expired.Status == ProviderStatus.Unavailable && readOnlyRefresh.Calls == 0 && expired.Message!.Contains("open Claude Code"), "Read-only mode waits for Claude Code to refresh an expired login");
+        check(File.ReadAllText(Path.Combine(readOnlyCli, ".credentials.json")) == before, "Read-only mode leaves CLI credentials untouched");
+        string unauthorizedCli = Area("readonly-401-cli"); Cli(unauthorizedCli, valid);
+        var unauthorizedRefresh = new FakeRefresher(); var unauthorizedUsage = new FakeClaudeUsage { UnauthorizedFirst = true };
+        var unauthorized = new ClaudeProvider(unauthorizedUsage, unauthorizedCli, Area("readonly-401-cache"), unauthorizedRefresh, allowTokenRefresh: false).Refresh();
+        check(unauthorized.Status == ProviderStatus.Unavailable && unauthorizedRefresh.Calls == 0 && unauthorizedUsage.Calls == 1 && unauthorized.Message == "Synthetic unauthorized response.",
+            "Read-only 401 reports the usage endpoint's reason instead of rotating tokens");
+
+        // Codex percentages and reset times.
+        var fractional = CodexUsageParser.Parse("{\"rate_limit\":{\"primary_window\":{\"used_percent\":23.5,\"reset_at\":0,\"limit_window_seconds\":18000}}}");
+        check(fractional?.Primary?.UsedPercent == 23.5, "Fractional Codex API percentage is not truncated to zero");
+        check(fractional?.Primary?.ResetsAt == null, "Missing Codex reset_at stays unknown instead of 1970");
+        var relative = new CodexWindow(10, 300, 3600, 0);
+        var recorded = DateTimeOffset.UtcNow.AddMinutes(-10);
+        check(relative.ResetsAt(recorded) == recorded.AddHours(1) && relative.ResetsAt(null) == null, "Relative reset uses the record time, never the epoch");
+        string apiRoot = Area("codex-api-noreset");
+        File.WriteAllText(Path.Combine(apiRoot, "auth.json"), "{\"tokens\":{\"access_token\":\"fake-codex\"}}");
+        var noReset = new CodexProvider(new FixedCodexUsage(fractional!), apiRoot).Refresh();
+        check(noReset.Meters.Single().Used == 23.5 && noReset.Resets.Count == 0, "Codex window without a reset time shows no reset countdown");
+
+        // An expired Codex login is surfaced while falling back to local data.
+        string failRoot = Area("codex-expired"); string sessions = Path.Combine(failRoot, "sessions"); Directory.CreateDirectory(sessions);
+        File.WriteAllText(Path.Combine(failRoot, "auth.json"), "{\"tokens\":{\"access_token\":\"fake-codex\"}}");
+        string Event(int percent) => JsonSerializer.Serialize(new
+        {
+            timestamp = DateTimeOffset.UtcNow.ToString("O"),
+            type = "event_msg",
+            payload = new { type = "token_count", rate_limits = new { secondary = new { used_percent = percent, window_minutes = 10080, resets_at = DateTimeOffset.UtcNow.AddDays(2).ToUnixTimeSeconds() } } }
+        });
+        File.WriteAllText(Path.Combine(sessions, "rollout-expired.jsonl"), Event(12) + "\n");
+        var fallback = new CodexProvider(new FailingCodexUsage(), failRoot).Refresh();
+        check(fallback.Source == UsageDataSource.LocalSession && fallback.Message!.StartsWith("Synthetic expired login") && fallback.Message.Contains("Local data"),
+            "Expired Codex login is reported alongside the local fallback");
+
+        // Session files are read from the end; the newest event wins across chunk boundaries and CRLF.
+        string big = Path.Combine(sessions, "rollout-big.jsonl");
+        string filler = JsonSerializer.Serialize(new { type = "response_item", payload = new string('x', 5000) });
+        var lines = Enumerable.Range(0, 40).Select(_ => filler).Prepend(Event(30)).Append(Event(55)).Concat(Enumerable.Range(0, 40).Select(_ => filler));
+        File.WriteAllText(big, string.Join("\r\n", lines) + "\r\n");
+        File.SetLastWriteTimeUtc(big, DateTime.UtcNow.AddMinutes(1));
+        var newest = new CodexSessionReaderProbe(sessions).Read();
+        check(newest?.Secondary?.UsedPercent == 55, "Backward session read finds the newest usage event past 64 KB of later output");
+        check(CodexSessionReaderProbe.Lines(big).Count() == 82 && CodexSessionReaderProbe.Lines(big).All(l => !l.EndsWith('\r')), "Backward line reader returns every line once without CR");
+
+        // A single record spanning hundreds of chunks is read in linear time and reassembled exactly.
+        string huge = Path.Combine(sessions, "rollout-huge.jsonl");
+        string paddedEvent = JsonSerializer.Serialize(new
+        {
+            timestamp = DateTimeOffset.UtcNow.ToString("O"),
+            type = "event_msg",
+            pad = new string('p', 3 * 1024 * 1024),
+            payload = new { type = "token_count", rate_limits = new { secondary = new { used_percent = 77, window_minutes = 10080, resets_at = DateTimeOffset.UtcNow.AddDays(2).ToUnixTimeSeconds() } } }
+        });
+        string hugeRecord = JsonSerializer.Serialize(new { type = "response_item", payload = new string('y', 16 * 1024 * 1024) });
+        File.WriteAllText(huge, paddedEvent + "\n" + hugeRecord);
+        File.SetLastWriteTimeUtc(huge, DateTime.UtcNow.AddMinutes(2));
+        var timer = System.Diagnostics.Stopwatch.StartNew();
+        var hugeLines = CodexSessionReaderProbe.Lines(huge).ToArray();
+        var hugeUsage = new CodexSessionReaderProbe(sessions).Read();
+        timer.Stop();
+        check(hugeLines.Length == 2 && hugeLines[0] == hugeRecord && hugeLines[1] == paddedEvent, "Multi-megabyte single records are reassembled exactly");
+        check(hugeUsage?.Secondary?.UsedPercent == 77, "A multi-megabyte usage event spanning many chunks still parses");
+        check(timer.Elapsed < TimeSpan.FromSeconds(1), $"Reading a 16 MB single-record file stays linear ({timer.ElapsedMilliseconds} ms)");
+
+        // Claude Code's current login defines the account: a longer-lived cached token from a previous account never wins.
+        var accountA = valid with { AccessToken = "fake-account-a", RefreshToken = "fake-refresh-a", ExpiresAt = DateTimeOffset.UtcNow.AddDays(30) };
+        var accountB = valid with { AccessToken = "fake-account-b", RefreshToken = "fake-refresh-b", ExpiresAt = DateTimeOffset.UtcNow.AddHours(1) };
+        string switchCli = Area("switch-cli"), switchCache = Area("switch-cache");
+        new ClaudeCredentialStore(switchCli, switchCache).WriteToStore(accountA);
+        byte[] cacheBefore = File.ReadAllBytes(Path.Combine(switchCache, "claude-token.dpapi"));
+        Cli(switchCli, accountB);
+        var switchUsage = new FakeClaudeUsage();
+        var switched = new ClaudeProvider(switchUsage, switchCli, switchCache).Refresh();
+        check(switched.Status == ProviderStatus.Ok && switchUsage.LastToken == "fake-account-b", "After a CLI account switch, the new account's login is used despite a later-expiring cached token");
+        check(File.ReadAllBytes(Path.Combine(switchCache, "claude-token.dpapi")).SequenceEqual(cacheBefore), "Read-only mode does not copy CLI tokens into the widget cache");
+        File.Delete(Path.Combine(switchCli, ".credentials.json"));
+        var signedOut = new ClaudeProvider(new FakeClaudeUsage(), switchCli, switchCache).Refresh();
+        check(signedOut.Status == ProviderStatus.Unavailable, "Signing out of Claude Code is not masked by a cached token");
+
+        // Valid-but-malformed CLI documents are ignored rather than thrown.
+        foreach (string document in new[] { "[]", "null", "42", "\"text\"", "{\"claudeAiOauth\":[]}" })
+        {
+            string malformedCli = Area("malformed-cli-" + Guid.NewGuid().ToString("N")), malformedCache = Area("malformed-cache-" + Guid.NewGuid().ToString("N"));
+            File.WriteAllText(Path.Combine(malformedCli, ".credentials.json"), document);
+            var malformedStore = new ClaudeCredentialStore(malformedCli, malformedCache);
+            malformedStore.WriteToStore(valid);
+            check(malformedStore.ReadFromCli() == null, $"Malformed CLI document {document} is ignored without throwing");
+            check(new ClaudeTokenManager(malformedStore, new FakeRefresher(), allowRefresh: true).GetFreshCredentials().Credentials != null, $"Refresh mode recovers from the protected cache when the CLI document is {document}");
+            var readOnly = new ClaudeProvider(new FakeClaudeUsage(), malformedCli, malformedCache).Refresh();
+            check(readOnly.Status == ProviderStatus.Unavailable && readOnly.Message!.Contains("No reusable local login"), $"Read-only mode reports a missing login when the CLI document is {document}");
+        }
+    }
+
+    private sealed class FixedCodexUsage(CodexUsageApi api) : ICodexUsageClient
+    {
+        public CodexUsageApi? Fetch(string accessToken, string? accountId) => api;
+    }
+
+    private sealed class CodexSessionReaderProbe(string sessions)
+    {
+        public CodexSessionUsage? Read() => new CodexSessionReader(sessions).ReadLatestUsage();
+        public static System.Collections.Generic.IEnumerable<string> Lines(string path) => CodexSessionReader.LinesFromEnd(path);
     }
 }

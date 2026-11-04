@@ -29,11 +29,11 @@ public sealed class ClaudeUsageClient : IClaudeUsageClient
         {
             throw new ClaudeFetchException(ClaudeFetchErrorKind.RateLimited, "usage endpoint is rate-limited — cooling down");
         }
-        using HttpRequestMessage httpRequestMessage = new HttpRequestMessage(HttpMethod.Get, "https://api.anthropic.com/api/oauth/usage");
+        using HttpRequestMessage httpRequestMessage = new HttpRequestMessage(HttpMethod.Get, UsageUrl);
         httpRequestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         httpRequestMessage.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-        httpRequestMessage.Headers.TryAddWithoutValidation("anthropic-beta", "oauth-2025-04-20");
-        httpRequestMessage.Headers.UserAgent.ParseAdd("claude-code/2.1.0");
+        httpRequestMessage.Headers.TryAddWithoutValidation("anthropic-beta", BetaHeader);
+        httpRequestMessage.Headers.UserAgent.ParseAdd("claude-code/" + DefaultClaudeCodeVersion);
         HttpResponseMessage httpResponseMessage;
         try
         {

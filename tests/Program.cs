@@ -36,6 +36,7 @@ Check(!State(40, 19).Tooltip.Contains("Weekly", StringComparison.OrdinalIgnoreCa
 var output = args.Length > 0 ? args[0] : "test-results";
 Directory.CreateDirectory(output);
 ProviderRiskTests.Run(output, Check);
+ProviderRiskTests.RunReviewFixes(output, Check);
 foreach (var workArea in new[] { new Rectangle(0, 0, 1920, 1032), new Rectangle(0, 0, 1920, 1020), new Rectangle(-1920, 0, 1920, 1032), new Rectangle(0, -1080, 1920, 1032) })
 {
     foreach (var size in new[] { new Size(284, 293), new Size(284, 450) })
@@ -56,7 +57,7 @@ cache.Clear();
 Check(!cache.IsStale, "Clearing cache resets stale state");
 Check(!ProviderFactory.NetworkAllowed(true, "true") && !ProviderFactory.NetworkAllowed(true, "TRUE") && !ProviderFactory.NetworkAllowed(true, "1"), "Network override honored case-insensitively");
 Check(!ProviderFactory.NetworkAllowed(false, null) && ProviderFactory.NetworkAllowed(true, null), "Explicit provider network setting honored");
-Check(Equals(typeof(ProviderFactory).GetMethod(nameof(ProviderFactory.Create))!.GetParameters()[1].DefaultValue, false), "Normal provider construction defaults to production with token refresh enabled");
+Check(Equals(typeof(ProviderFactory).GetMethod(nameof(ProviderFactory.Create))!.GetParameters()[1].DefaultValue, false), "Normal provider construction defaults to production (read-only Claude login)");
 Check(StartupRegistration.MatchesExecutable("\"C:\\Apps\\CodexBarWin.exe\"", "C:\\Apps\\CodexBarWin.exe"), "Quoted startup path recognized");
 Check(!StartupRegistration.MatchesExecutable("\"C:\\Other\\CodexBarWin.exe\"", "C:\\Apps\\CodexBarWin.exe"), "Stale startup entry is not mistaken for this installation");
 string settingsDirectory = Path.Combine(output, "settings-" + Guid.NewGuid().ToString("N"));
