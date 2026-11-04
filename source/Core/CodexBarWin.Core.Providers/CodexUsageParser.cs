@@ -45,7 +45,16 @@ public static class CodexUsageParser
         {
             return null;
         }
-        return new CodexApiWindow(GetInt(value, "used_percent"), GetLong(value, "reset_at"), GetInt(value, "limit_window_seconds"));
+        return new CodexApiWindow(GetDouble(value, "used_percent"), GetLong(value, "reset_at"), GetInt(value, "limit_window_seconds"));
+    }
+
+    private static double GetDouble(JsonElement e, string n)
+    {
+        if (!e.TryGetProperty(n, out var value) || value.ValueKind != JsonValueKind.Number || !value.TryGetDouble(out var value2))
+        {
+            return 0.0;
+        }
+        return value2;
     }
 
     private static int GetInt(JsonElement e, string n)

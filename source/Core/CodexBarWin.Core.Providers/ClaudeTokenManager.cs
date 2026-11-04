@@ -6,6 +6,8 @@ namespace CodexBarWin.Core.Providers;
 internal sealed class ClaudeTokenManager
 {
     private static readonly TimeSpan RefreshSkew = TimeSpan.FromMinutes(2);
+    // Read-only mode never rotates the CLI's refresh token, so it waits for Claude Code to refresh its own login.
+    private const string ExpiredReadOnly = "Claude login expired; open Claude Code once to refresh it.";
     private readonly ClaudeCredentialStore _store;
     private readonly IClaudeOAuthRefresher _refresher;
     private readonly bool _allowRefresh;
@@ -25,7 +27,7 @@ internal sealed class ClaudeTokenManager
         if (!_allowRefresh)
         {
             if (selected.ExpiresAt.HasValue && selected.ExpiresAt.Value <= DateTimeOffset.UtcNow)
-                return new(null, "Preview is waiting for the installed app to refresh its login; it will not rotate that app's tokens.");
+                return new(null, ExpiredReadOnly);
             return Remember(selected);
         }
         if (!NeedsRefresh(selected)) return Remember(selected);
@@ -42,7 +44,8 @@ internal sealed class ClaudeTokenManager
 
     public ClaudeTokenResult ForceRefresh()
     {
-        if (!_allowRefresh) return new(null, "Preview will not rotate the installed app's login tokens; retry after the main app refreshes.");
+        // No error of our own: the caller keeps the usage endpoint's 401 message.
+        if (!_allowRefresh) return new(null, null);
         var selected = ClaudeCredentialStore.Freshest(
             ClaudeCredentialStore.Freshest(_store.ReadFromCli(), _store.ReadFromStore()), _session);
         if (selected == null || !selected.HasProfileScope) return new(null, "No reusable scoped login; run Claude to log in.");

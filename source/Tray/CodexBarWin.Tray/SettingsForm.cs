@@ -17,7 +17,7 @@ internal sealed class SettingsForm : Form
     public SettingsForm(AppSettings current)
     {
         Result = current.Clone();
-        Text = "CodexBarWin Settings";
+        Text = "TokenTray Settings";
         FormBorderStyle = FormBorderStyle.FixedDialog;
         StartPosition = FormStartPosition.CenterScreen;
         MaximizeBox = false;

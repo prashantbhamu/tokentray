@@ -21,8 +21,10 @@ internal static class ProviderFactory
         {
             string mainStore = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CodexBarWin");
             string store = preview ? Path.Combine(mainStore, "provider-fixes-preview") : mainStore;
+            // Never rotate Claude tokens: the new refresh token can't be written back to Claude Code's
+            // credentials, so refreshing here would sign the CLI out.
             providers.Add(new ClaudeProvider(NetworkAllowed(settings.ClaudeUseNetwork, noNetwork) ? new ClaudeUsageClient() : null,
-                tokenStoreDir: store, allowTokenRefresh: !preview, legacyTokenStoreDir: preview ? mainStore : null));
+                tokenStoreDir: store, allowTokenRefresh: false, legacyTokenStoreDir: preview ? mainStore : null));
         }
         return new ProviderRegistry(providers);
     }

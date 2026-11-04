@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using CodexBarWin.Core.Models;
 using CodexBarWin.Core.Providers;
+using CodexBarWin.Core.Readers;
 using CodexBarWin.Tray;
 using Microsoft.Data.Sqlite;
 
@@ -212,5 +213,90 @@ internal static class ProviderRiskTests
     {
         public int Calls;
         public CodexUsageApi? Fetch(string accessToken, string? accountId) { Calls++; return new("pro", null, new(42, DateTimeOffset.UtcNow.AddDays(5).ToUnixTimeSeconds(), 604800)); }
+    }
+    private sealed class FailingCodexUsage : ICodexUsageClient
+    {
+        public string? LastFailure => "Synthetic expired login";
+        public CodexUsageApi? Fetch(string accessToken, string? accountId) => null;
+    }
+
+    // Regression checks for the pre-public review fixes.
+    public static void RunReviewFixes(string output, Action<bool, string> check)
+    {
+        string root = Path.Combine(output, "review-fixtures-" + Guid.NewGuid().ToString("N"));
+        string Area(string name) { string path = Path.Combine(root, name); Directory.CreateDirectory(path); return path; }
+        string Cli(string directory, ClaudeCredentials c)
+        {
+            string json = "{\"claudeAiOauth\":" + JsonSerializer.Serialize(new
+            {
+                accessToken = c.AccessToken,
+                refreshToken = c.RefreshToken,
+                expiresAt = c.ExpiresAt?.ToUnixTimeMilliseconds(),
+                scopes = c.Scopes,
+                subscriptionType = c.SubscriptionType
+            }) + "}";
+            File.WriteAllText(Path.Combine(directory, ".credentials.json"), json);
+            return json;
+        }
+        var valid = new ClaudeCredentials("fake-access-only", "fake-refresh-only", DateTimeOffset.UtcNow.AddHours(2), new[] { "user:profile" }, "pro");
+
+        // Read-only Claude mode never rotates tokens, so Claude Code's own refresh token stays valid.
+        string readOnlyCli = Area("readonly-cli"); string before = Cli(readOnlyCli, valid with { ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(-5) });
+        var readOnlyRefresh = new FakeRefresher();
+        var expired = new ClaudeProvider(new FakeClaudeUsage(), readOnlyCli, Area("readonly-cache"), readOnlyRefresh, allowTokenRefresh: false).Refresh();
+        check(expired.Status == ProviderStatus.Unavailable && readOnlyRefresh.Calls == 0 && expired.Message!.Contains("open Claude Code"), "Read-only mode waits for Claude Code to refresh an expired login");
+        check(File.ReadAllText(Path.Combine(readOnlyCli, ".credentials.json")) == before, "Read-only mode leaves CLI credentials untouched");
+        string unauthorizedCli = Area("readonly-401-cli"); Cli(unauthorizedCli, valid);
+        var unauthorizedRefresh = new FakeRefresher(); var unauthorizedUsage = new FakeClaudeUsage { UnauthorizedFirst = true };
+        var unauthorized = new ClaudeProvider(unauthorizedUsage, unauthorizedCli, Area("readonly-401-cache"), unauthorizedRefresh, allowTokenRefresh: false).Refresh();
+        check(unauthorized.Status == ProviderStatus.Unavailable && unauthorizedRefresh.Calls == 0 && unauthorizedUsage.Calls == 1 && unauthorized.Message == "Synthetic unauthorized response.",
+            "Read-only 401 reports the usage endpoint's reason instead of rotating tokens");
+
+        // Codex percentages and reset times.
+        var fractional = CodexUsageParser.Parse("{\"rate_limit\":{\"primary_window\":{\"used_percent\":23.5,\"reset_at\":0,\"limit_window_seconds\":18000}}}");
+        check(fractional?.Primary?.UsedPercent == 23.5, "Fractional Codex API percentage is not truncated to zero");
+        check(fractional?.Primary?.ResetsAt == null, "Missing Codex reset_at stays unknown instead of 1970");
+        var relative = new CodexWindow(10, 300, 3600, 0);
+        var recorded = DateTimeOffset.UtcNow.AddMinutes(-10);
+        check(relative.ResetsAt(recorded) == recorded.AddHours(1) && relative.ResetsAt(null) == null, "Relative reset uses the record time, never the epoch");
+        string apiRoot = Area("codex-api-noreset");
+        File.WriteAllText(Path.Combine(apiRoot, "auth.json"), "{\"tokens\":{\"access_token\":\"fake-codex\"}}");
+        var noReset = new CodexProvider(new FixedCodexUsage(fractional!), apiRoot).Refresh();
+        check(noReset.Meters.Single().Used == 23.5 && noReset.Resets.Count == 0, "Codex window without a reset time shows no reset countdown");
+
+        // An expired Codex login is surfaced while falling back to local data.
+        string failRoot = Area("codex-expired"); string sessions = Path.Combine(failRoot, "sessions"); Directory.CreateDirectory(sessions);
+        File.WriteAllText(Path.Combine(failRoot, "auth.json"), "{\"tokens\":{\"access_token\":\"fake-codex\"}}");
+        string Event(int percent) => JsonSerializer.Serialize(new
+        {
+            timestamp = DateTimeOffset.UtcNow.ToString("O"),
+            type = "event_msg",
+            payload = new { type = "token_count", rate_limits = new { secondary = new { used_percent = percent, window_minutes = 10080, resets_at = DateTimeOffset.UtcNow.AddDays(2).ToUnixTimeSeconds() } } }
+        });
+        File.WriteAllText(Path.Combine(sessions, "rollout-expired.jsonl"), Event(12) + "\n");
+        var fallback = new CodexProvider(new FailingCodexUsage(), failRoot).Refresh();
+        check(fallback.Source == UsageDataSource.LocalSession && fallback.Message!.StartsWith("Synthetic expired login") && fallback.Message.Contains("Local data"),
+            "Expired Codex login is reported alongside the local fallback");
+
+        // Session files are read from the end; the newest event wins across chunk boundaries and CRLF.
+        string big = Path.Combine(sessions, "rollout-big.jsonl");
+        string filler = JsonSerializer.Serialize(new { type = "response_item", payload = new string('x', 5000) });
+        var lines = Enumerable.Range(0, 40).Select(_ => filler).Prepend(Event(30)).Append(Event(55)).Concat(Enumerable.Range(0, 40).Select(_ => filler));
+        File.WriteAllText(big, string.Join("\r\n", lines) + "\r\n");
+        File.SetLastWriteTimeUtc(big, DateTime.UtcNow.AddMinutes(1));
+        var newest = new CodexSessionReaderProbe(sessions).Read();
+        check(newest?.Secondary?.UsedPercent == 55, "Backward session read finds the newest usage event past 64 KB of later output");
+        check(CodexSessionReaderProbe.Lines(big).Count() == 82 && CodexSessionReaderProbe.Lines(big).All(l => !l.EndsWith('\r')), "Backward line reader returns every line once without CR");
+    }
+
+    private sealed class FixedCodexUsage(CodexUsageApi api) : ICodexUsageClient
+    {
+        public CodexUsageApi? Fetch(string accessToken, string? accountId) => api;
+    }
+
+    private sealed class CodexSessionReaderProbe(string sessions)
+    {
+        public CodexSessionUsage? Read() => new CodexSessionReader(sessions).ReadLatestUsage();
+        public static System.Collections.Generic.IEnumerable<string> Lines(string path) => CodexSessionReader.LinesFromEnd(path);
     }
 }

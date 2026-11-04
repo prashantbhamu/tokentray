@@ -26,8 +26,9 @@ public sealed class CodexSessionReader
         IEnumerable<string> enumerable;
         try
         {
-            enumerable = Directory.EnumerateFiles(_sessionsDir, "rollout-*.jsonl", SearchOption.AllDirectories).OrderByDescending(File.GetLastWriteTimeUtc).Take(25)
-                .ToArray();
+            // FileInfo from enumeration carries its write time, so sorting needs no extra stat per file.
+            enumerable = new DirectoryInfo(_sessionsDir).EnumerateFiles("rollout-*.jsonl", SearchOption.AllDirectories)
+                .OrderByDescending(f => f.LastWriteTimeUtc).Take(25).Select(f => f.FullName).ToArray();
         }
         catch
         {
@@ -35,27 +36,55 @@ public sealed class CodexSessionReader
         }
         foreach (string item in enumerable)
         {
-            CodexSessionUsage codexSessionUsage = null;
             try
             {
-                foreach (string item2 in File.ReadLines(item))
+                // The newest usage event is near the end, so read backwards and stop at the first one.
+                foreach (string item2 in LinesFromEnd(item))
                 {
-                    if (item2.Contains("\"token_count\"", StringComparison.Ordinal))
+                    if (item2.Contains("\"token_count\"", StringComparison.Ordinal) && Parse(item2) is { } usage)
                     {
-                        codexSessionUsage = Parse(item2) ?? codexSessionUsage;
+                        return usage;
                     }
                 }
             }
             catch
             {
             }
-            if ((object)codexSessionUsage != null)
-            {
-                return codexSessionUsage;
-            }
         }
         return null;
     }
+
+    private const int ChunkSize = 64 * 1024;
+
+    internal static IEnumerable<string> LinesFromEnd(string path)
+    {
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        var buffer = new byte[ChunkSize];
+        byte[] carry = Array.Empty<byte>();
+        long position = stream.Length;
+        while (position > 0)
+        {
+            int count = (int)Math.Min(ChunkSize, position);
+            position -= count;
+            stream.Position = position;
+            stream.ReadExactly(buffer, 0, count);
+            var block = new byte[count + carry.Length];
+            Buffer.BlockCopy(buffer, 0, block, 0, count);
+            Buffer.BlockCopy(carry, 0, block, count, carry.Length);
+            int end = block.Length;
+            // '\n' never occurs inside a multi-byte UTF-8 sequence, so splitting on the byte is safe.
+            for (int i = block.Length - 1; i >= 0; i--)
+            {
+                if (block[i] != (byte)'\n') continue;
+                if (end - i - 1 > 0) yield return Line(block, i + 1, end);
+                end = i;
+            }
+            carry = block.AsSpan(0, end).ToArray();
+        }
+        if (carry.Length > 0) yield return Line(carry, 0, carry.Length);
+    }
+
+    private static string Line(byte[] bytes, int start, int end) => System.Text.Encoding.UTF8.GetString(bytes, start, end - start).TrimEnd('\r');
 
     internal static CodexSessionUsage? Parse(string? jsonLine)
     {

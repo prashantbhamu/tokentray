@@ -31,7 +31,7 @@ internal sealed class TrayAppContext : ApplicationContext
         _popup = new PopupForm(RequestRefresh);
         if (open) _popup.OpenWhenReady();
         _ = _popup.Handle; // Install the WinForms synchronization context before refreshing.
-        _tray = new NotifyIcon { Visible = true, Icon = SystemIcons.Application, Text = "CodexBarWin", ContextMenuStrip = BuildMenu() };
+        _tray = new NotifyIcon { Visible = true, Icon = SystemIcons.Application, Text = "TokenTray", ContextMenuStrip = BuildMenu() };
         _tray.MouseClick += (_, e) => { if (e.Button == MouseButtons.Left) _popup.ToggleNearTray(); };
         _timer = new Timer { Interval = _settings.ClampedIntervalSeconds() * 1000 };
         _timer.Tick += (_, _) => RequestRefresh();
@@ -62,13 +62,13 @@ internal sealed class TrayAppContext : ApplicationContext
         bool startupChanged = updated.LaunchAtLogin != _settings.LaunchAtLogin;
         if (startupChanged && StartupRegistration.Set(updated.LaunchAtLogin) != updated.LaunchAtLogin)
         {
-            MessageBox.Show("Windows startup could not be changed. No settings were applied.", "CodexBarWin", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show("Windows startup could not be changed. No settings were applied.", "TokenTray", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
         if (!SettingsStore.TrySave(updated, out string? error))
         {
             if (startupChanged) StartupRegistration.Set(_settings.LaunchAtLogin);
-            MessageBox.Show("Settings could not be saved. " + error, "CodexBarWin", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show("Settings could not be saved. " + error, "TokenTray", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
         _settings = updated.Clone();

@@ -21,13 +21,13 @@ public sealed class ClaudeOAuthRefresher : IClaudeOAuthRefresher
 
     public ClaudeRefreshResult Refresh(string refreshToken)
     {
-        using HttpRequestMessage httpRequestMessage = new HttpRequestMessage(HttpMethod.Post, "https://platform.claude.com/v1/oauth/token");
+        using HttpRequestMessage httpRequestMessage = new HttpRequestMessage(HttpMethod.Post, TokenEndpoint);
         httpRequestMessage.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         httpRequestMessage.Content = new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["grant_type"] = "refresh_token",
             ["refresh_token"] = refreshToken,
-            ["client_id"] = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
+            ["client_id"] = ClientId
         });
         HttpResponseMessage httpResponseMessage;
         try
