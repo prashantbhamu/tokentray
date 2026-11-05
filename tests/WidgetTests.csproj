@@ -13,6 +13,8 @@
   <Compile Include="../source/Tray/CodexBarWin.Tray/SettingsForm.cs" Link="SettingsForm.cs" />
   <Compile Include="../source/Tray/CodexBarWin.Tray/StartupRegistration.cs" Link="StartupRegistration.cs" />
   <Compile Include="../source/Tray/CodexBarWin.Tray/ProviderFactory.cs" Link="ProviderFactory.cs" />
+  <Compile Include="../source/Tray/CodexBarWin.Tray/ClaudeRenewal.cs" Link="ClaudeRenewal.cs" />
+  <Compile Include="../source/Tray/CodexBarWin.Tray/FileChangeSignal.cs" Link="FileChangeSignal.cs" />
   <PackageReference Include="FontAwesome.Sharp" Version="6.6.0" />
   <ProjectReference Include="../source/Core/CodexBarWin.Core.csproj" />
  </ItemGroup>

@@ -1,3 +1,13 @@
+# Unreleased
+
+- When the Claude Code login expires or is rejected, the popup shows an **Open Claude Code to
+  renew login** button. It opens the Claude Code CLI in a visible terminal so the CLI renews its
+  own login. TokenTray still never refreshes Claude tokens itself. (Issue #5)
+- TokenTray watches Claude Code's login file and refreshes as soon as it changes, instead of
+  waiting for the next refresh interval.
+- The Claude tray bar turns gray, and the tooltip says "Claude login needed", while the login
+  needs renewal.
+
 # TokenTray v1.3.1
 
 - The popup and tray no longer keep showing the last Claude reading after you sign out, after

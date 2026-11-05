@@ -38,6 +38,7 @@ Directory.CreateDirectory(output);
 ProviderRiskTests.Run(output, Check);
 ProviderRiskTests.RunReviewFixes(output, Check);
 ProviderRiskTests.RunCacheIntegration(output, Check);
+RenewalTests.Run(output, Check);
 foreach (var workArea in new[] { new Rectangle(0, 0, 1920, 1032), new Rectangle(0, 0, 1920, 1020), new Rectangle(-1920, 0, 1920, 1032), new Rectangle(0, -1080, 1920, 1032) })
 {
     foreach (var size in new[] { new Size(284, 293), new Size(284, 450) })
@@ -117,8 +118,8 @@ var ui = new Thread(() =>
 {
     try
     {
-        int refreshes = 0;
-        using var popup = new PopupForm(() => refreshes++);
+        int refreshes = 0, renewals = 0;
+        using var popup = new PopupForm(() => refreshes++, () => renewals++);
         popup.Location = new Point(-4000, -4000);
         _ = popup.Handle;
         Console.WriteLine($"Display check: DPI={popup.DeviceDpi}; screen={Screen.PrimaryScreen?.Bounds}; work area={Screen.PrimaryScreen?.WorkingArea}; tray={SystemInformation.SmallIconSize}.");
@@ -132,7 +133,9 @@ var ui = new Thread(() =>
         Check(popup.Width == 284 && popup.Height < 340, $"Circular popup remains compact ({popup.Width}x{popup.Height})");
         popup.Show();
         Application.DoEvents();
-        var refresh = popup.Controls.OfType<Button>().Single();
+        var refresh = popup.Controls.OfType<Button>().Single(b => b.AccessibleName == "Refresh usage");
+        var renew = popup.Controls.OfType<Button>().Single(b => b != refresh);
+        Check(!renew.Visible, "Renew button hidden while Claude usage is live");
         refresh.PerformClick();
         Check(refreshes == 1, "Refresh icon invokes refresh callback");
         popup.SetRefreshing(true);
@@ -161,6 +164,29 @@ var ui = new Thread(() =>
         var longError = Snapshot("codex", 0, 0, ProviderStatus.Error) with { Message = new string('x', 9000) };
         popup.Render(new[] { longError, Snapshot("claude", 0, 0, ProviderStatus.Error) with { Message = new string('x', 9000) } });
         Check(popup.Height < 500, "Long provider errors cannot expand popup beyond Full HD work area");
+        var expiredClaude = UsageSnapshot.ForState("claude", "Claude Code", ProviderStatus.Unavailable, "Claude login expired; open Claude Code once to refresh it.", "pro");
+        popup.Render(new[] { Snapshot("codex", 40), expiredClaude });
+        Application.DoEvents();
+        Check(renew.Visible && renew.Bottom < popup.ClientSize.Height - 20, "Expired Claude login shows the renew button above the footer");
+        Check(renew.Width <= popup.ClientSize.Width - 40 && renew.Left >= 20, "Renew button fits inside the popup");
+        Check(renew.GetPreferredSize(Size.Empty).Width <= renew.Width, "Renew button text fits at current display DPI");
+        renew.PerformClick();
+        Check(renewals == 1 && refreshes == 2, "Renew button invokes renewal only");
+        foreach (bool light in new[] { true, false })
+        {
+            popup.PreviewTheme(light);
+            using var renewShot = new Bitmap(popup.Width, popup.Height);
+            popup.DrawToBitmap(renewShot, new Rectangle(Point.Empty, renewShot.Size));
+            renewShot.Save(Path.Combine(output, light ? "popup-claude-expired-light.png" : "popup-claude-expired-dark.png"));
+        }
+        popup.Render(new[] { Snapshot("codex", 40), Snapshot("claude", 0, 0, ProviderStatus.Error) });
+        Check(!renew.Visible, "Transient Claude errors do not show the renew button");
+        using (var noRenew = new PopupForm(() => { }))
+        {
+            _ = noRenew.Handle;
+            noRenew.Render(new[] { expiredClaude });
+            Check(!noRenew.Controls.OfType<Button>().Any(b => b.Visible && b.AccessibleName != "Refresh usage"), "Previews without a renew action show no button");
+        }
         popup.Render(new[] { Snapshot("codex", 100), Snapshot("claude", 100, 0) });
         using var limitsShot = new Bitmap(popup.Width, popup.Height);
         popup.DrawToBitmap(limitsShot, new Rectangle(Point.Empty, limitsShot.Size));

@@ -23,7 +23,7 @@ public sealed class ClaudeProvider : IProvider
         bool allowTokenRefresh = false, string? legacyTokenStoreDir = null)
     {
         _usageClient = usageClient;
-        _claudeDir = claudeDir ?? Path.Combine(UserProfile(), ".claude");
+        _claudeDir = claudeDir ?? DefaultClaudeDir();
         string storeDir = tokenStoreDir ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CodexBarWin");
         // The store itself refuses to retire a legacy cache that belongs to another directory (preview).
         _store = new ClaudeCredentialStore(_claudeDir, storeDir, legacyTokenStoreDir);
@@ -32,6 +32,9 @@ public sealed class ClaudeProvider : IProvider
             _tokenManager = new ClaudeTokenManager(_store, refresher ?? new ClaudeOAuthRefresher(), allowTokenRefresh);
         }
     }
+
+    /// <summary>The folder that holds Claude Code's login (<c>.credentials.json</c>).</summary>
+    public static string DefaultClaudeDir() => Path.Combine(UserProfile(), ".claude");
 
     public bool IsInstalled()
     {
