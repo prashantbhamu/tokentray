@@ -9,6 +9,8 @@ internal static class TrayIconRenderer
 {
     internal static readonly Color CodexColor = Color.FromArgb(21, 21, 21);
     internal static readonly Color ClaudeColor = Color.FromArgb(232, 119, 34);
+    // Outline of the Claude bar while its login needs renewal (expired, rejected or signed out): not the live orange.
+    internal static readonly Color ExpiredColor = Color.FromArgb(128, 133, 142);
     private static readonly Color Track = Color.FromArgb(211, 215, 221);
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -30,7 +32,7 @@ internal static class TrayIconRenderer
             // Wider bars with an eight-unit transparent gap, independent bottom-up fill.
             float outline = Math.Max(2f, 48f / size);
             DrawBar(g, 4, state.Codex, CodexColor, outline);
-            DrawBar(g, 36, state.Claude, ClaudeColor, outline);
+            DrawBar(g, 36, state.Claude, state.ClaudeNeedsLogin ? ExpiredColor : ClaudeColor, outline);
         }
         var bitmap = new Bitmap(size, size, PixelFormat.Format32bppArgb);
         using (var g = Graphics.FromImage(bitmap))

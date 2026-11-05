@@ -23,7 +23,7 @@ public sealed class ClaudeProvider : IProvider
         bool allowTokenRefresh = false, string? legacyTokenStoreDir = null)
     {
         _usageClient = usageClient;
-        _claudeDir = claudeDir ?? Path.Combine(UserProfile(), ".claude");
+        _claudeDir = claudeDir ?? DefaultClaudeDir();
         string storeDir = tokenStoreDir ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CodexBarWin");
         // The store itself refuses to retire a legacy cache that belongs to another directory (preview).
         _store = new ClaudeCredentialStore(_claudeDir, storeDir, legacyTokenStoreDir);
@@ -32,6 +32,9 @@ public sealed class ClaudeProvider : IProvider
             _tokenManager = new ClaudeTokenManager(_store, refresher ?? new ClaudeOAuthRefresher(), allowTokenRefresh);
         }
     }
+
+    /// <summary>The folder that holds Claude Code's login (<c>.credentials.json</c>).</summary>
+    public static string DefaultClaudeDir() => Path.Combine(UserProfile(), ".claude");
 
     public bool IsInstalled()
     {
@@ -57,7 +60,9 @@ public sealed class ClaudeProvider : IProvider
         if ((object)freshCredentials.Credentials == null)
         {
             Diag.Log("claude: no usable creds → " + freshCredentials.Error);
-            return UsageSnapshot.ForState(Id, DisplayName, ProviderStatus.Unavailable, freshCredentials.Error, _store.ReadFromCli()?.SubscriptionType);
+            return UsageSnapshot.ForState(Id, DisplayName, ProviderStatus.Unavailable, freshCredentials.Error, _store.ReadFromCli()?.SubscriptionType)
+                with
+            { LoginRenewable = freshCredentials.Renewable };
         }
         // Tag every result with the login's account so the tray cache can't show one account's usage for another.
         return FetchFor(freshCredentials) with { AccountKey = _store.AccountKey(freshCredentials.Credentials) };
@@ -76,7 +81,10 @@ public sealed class ClaudeProvider : IProvider
             ClaudeTokenResult claudeTokenResult = _tokenManager.ForceRefresh();
             if ((object)claudeTokenResult.Credentials == null)
             {
-                return UsageSnapshot.ForState(Id, DisplayName, ProviderStatus.Unavailable, claudeTokenResult.Error ?? ex.Message, subscriptionType);
+                // The usage endpoint rejected the login; Claude Code renews or replaces a rejected token on start.
+                return UsageSnapshot.ForState(Id, DisplayName, ProviderStatus.Unavailable, claudeTokenResult.Error ?? ex.Message, subscriptionType)
+                    with
+                { LoginRenewable = true };
             }
             try
             {
@@ -85,8 +93,10 @@ public sealed class ClaudeProvider : IProvider
             catch (ClaudeFetchException ex2)
             {
                 Diag.Log($"claude: retry fetch {ex2.Kind}: {ex2.Message}");
-                ProviderStatus status = ((ex2.Kind == ClaudeFetchErrorKind.Unauthorized) ? ProviderStatus.Unavailable : ProviderStatus.Error);
-                return UsageSnapshot.ForState(Id, DisplayName, status, ex2.Message, subscriptionType);
+                bool rejected = ex2.Kind == ClaudeFetchErrorKind.Unauthorized;
+                return UsageSnapshot.ForState(Id, DisplayName, rejected ? ProviderStatus.Unavailable : ProviderStatus.Error, ex2.Message, subscriptionType)
+                    with
+                { LoginRenewable = rejected };
             }
         }
         catch (ClaudeFetchException ex3)
