@@ -164,7 +164,7 @@ var ui = new Thread(() =>
         var longError = Snapshot("codex", 0, 0, ProviderStatus.Error) with { Message = new string('x', 9000) };
         popup.Render(new[] { longError, Snapshot("claude", 0, 0, ProviderStatus.Error) with { Message = new string('x', 9000) } });
         Check(popup.Height < 500, "Long provider errors cannot expand popup beyond Full HD work area");
-        var expiredClaude = UsageSnapshot.ForState("claude", "Claude Code", ProviderStatus.Unavailable, "Claude login expired; open Claude Code once to refresh it.", "pro");
+        var expiredClaude = UsageSnapshot.ForState("claude", "Claude Code", ProviderStatus.Unavailable, "Claude login expired; open Claude Code once to refresh it.", "pro") with { LoginRenewable = true };
         popup.Render(new[] { Snapshot("codex", 40), expiredClaude });
         Application.DoEvents();
         Check(renew.Visible && renew.Bottom < popup.ClientSize.Height - 20, "Expired Claude login shows the renew button above the footer");

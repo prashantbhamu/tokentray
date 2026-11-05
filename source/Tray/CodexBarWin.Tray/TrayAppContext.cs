@@ -31,7 +31,8 @@ internal sealed class TrayAppContext : ApplicationContext
         _settings = SettingsStore.Load();
         _settings.LaunchAtLogin = StartupRegistration.IsEnabled();
         _registry = ProviderFactory.Create(_settings, _preview);
-        _popup = new PopupForm(() => RequestRefresh(), RenewClaudeLogin);
+        // The isolated preview never starts the real Claude Code CLI.
+        _popup = new PopupForm(() => RequestRefresh(), _preview ? null : RenewClaudeLogin);
         if (open) _popup.OpenWhenReady();
         _ = _popup.Handle; // Install the WinForms synchronization context before refreshing.
         _tray = new NotifyIcon { Visible = true, Icon = SystemIcons.Application, Text = "TokenTray", ContextMenuStrip = BuildMenu() };
@@ -116,8 +117,8 @@ internal sealed class TrayAppContext : ApplicationContext
             if (queueIfBusy) _refreshQueued = true;
             return;
         }
-        // Claude Code may be installed after TokenTray starts.
-        if (_claudeLoginWatch == null && _settings.ClaudeEnabled) UpdateClaudeLoginWatch();
+        // Claude Code may be installed after TokenTray starts, and a watch stops if its folder is replaced.
+        if ((_claudeLoginWatch == null || _claudeLoginWatch.Faulted) && _settings.ClaudeEnabled) UpdateClaudeLoginWatch();
         _refreshing = true;
         int version = _settingsVersion;
         var registry = _registry;

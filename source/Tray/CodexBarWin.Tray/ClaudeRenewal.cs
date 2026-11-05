@@ -12,12 +12,12 @@ namespace CodexBarWin.Tray;
 /// </summary>
 internal static class ClaudeRenewal
 {
-    private static readonly TimeSpan RepeatGuard = TimeSpan.FromSeconds(15);
-    private static DateTime _lastLaunch = DateTime.MinValue;
+    // cmd.exe expands this once and does not rescan the result, so '%', '&' or '^' in the path stay literal.
+    internal const string CliVariable = "TOKENTRAY_CLAUDE_CLI";
+    private static Process? _terminal;
 
-    /// <summary>A Claude login problem (expired, rejected or missing) that opening Claude Code can fix.</summary>
-    public static bool Applies(UsageSnapshot snapshot) =>
-        snapshot.ProviderId == "claude" && snapshot.Status == ProviderStatus.Unavailable;
+    /// <summary>The provider says opening Claude Code can fix this login (expired, rejected or signed out).</summary>
+    public static bool Applies(UsageSnapshot snapshot) => snapshot.ProviderId == "claude" && snapshot.LoginRenewable;
 
     /// <summary>Finds the Claude Code CLI on PATH, or in the native installer's default folder.</summary>
     internal static string? FindCli(string? path, string? home)
@@ -38,15 +38,43 @@ internal static class ClaudeRenewal
         return File.Exists(native) ? native : null;
     }
 
-    /// <summary>Command line for cmd.exe; the doubled quotes keep a path with spaces or symbols intact.</summary>
-    internal static string TerminalArguments(string cli) => $"/k \"\"{cli}\"\"";
+    /// <summary>
+    /// TokenTray's own PATH is fixed when it starts at login; the saved user and machine PATH also include
+    /// a Claude Code install made after that.
+    /// </summary>
+    internal static string CurrentPath()
+    {
+        string Read(EnvironmentVariableTarget target)
+        {
+            try { return Environment.ExpandEnvironmentVariables(Environment.GetEnvironmentVariable("PATH", target) ?? ""); }
+            catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException) { return ""; }
+        }
+        return string.Join(Path.PathSeparator, Environment.GetEnvironmentVariable("PATH") ?? "",
+            Read(EnvironmentVariableTarget.User), Read(EnvironmentVariableTarget.Machine));
+    }
+
+    /// <summary>Command line for cmd.exe. The doubled quotes keep a path with spaces intact.</summary>
+    internal static string TerminalArguments() => $"/k \"\"%{CliVariable}%\"\"";
+
+    internal static ProcessStartInfo StartInfo(string cli, string folder)
+    {
+        // Not shell-executed: TokenTray has no console, so cmd.exe gets a new visible console window of its own.
+        var start = new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "cmd.exe"), TerminalArguments())
+        {
+            UseShellExecute = false,
+            CreateNoWindow = false,
+            WorkingDirectory = folder
+        };
+        start.Environment[CliVariable] = cli;
+        return start;
+    }
 
     public static bool TryOpen(out string? error)
     {
         error = null;
-        // A second click while the first terminal is starting must not open another CLI.
-        if (DateTime.UtcNow - _lastLaunch < RepeatGuard) return true;
-        string? cli = FindCli(Environment.GetEnvironmentVariable("PATH"), Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+        // While the terminal from the last click is still open, do not start a second CLI.
+        if (IsRunning(_terminal)) return true;
+        string? cli = FindCli(CurrentPath(), Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
         if (cli == null)
         {
             error = "Claude Code was not found. Install the Claude Code CLI, or run claude in a terminal to renew the login.";
@@ -57,13 +85,8 @@ internal static class ClaudeRenewal
             // An empty folder of its own: Claude Code reads no project files, and any trust prompt is the user's to answer.
             string folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CodexBarWin", "claude-renew");
             Directory.CreateDirectory(folder);
-            var start = new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "cmd.exe"), TerminalArguments(cli))
-            {
-                UseShellExecute = true,
-                WorkingDirectory = folder
-            };
-            using var process = Process.Start(start);
-            _lastLaunch = DateTime.UtcNow;
+            _terminal?.Dispose();
+            _terminal = Process.Start(StartInfo(cli, folder));
             return true;
         }
         catch (Exception ex) when (ex is Win32Exception or IOException or UnauthorizedAccessException or InvalidOperationException)
@@ -71,5 +94,11 @@ internal static class ClaudeRenewal
             error = "Claude Code could not be opened: " + ex.Message;
             return false;
         }
+    }
+
+    private static bool IsRunning(Process? process)
+    {
+        try { return process != null && !process.HasExited; }
+        catch (Exception ex) when (ex is InvalidOperationException or Win32Exception) { return false; }
     }
 }

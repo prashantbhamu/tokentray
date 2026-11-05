@@ -60,7 +60,9 @@ public sealed class ClaudeProvider : IProvider
         if ((object)freshCredentials.Credentials == null)
         {
             Diag.Log("claude: no usable creds → " + freshCredentials.Error);
-            return UsageSnapshot.ForState(Id, DisplayName, ProviderStatus.Unavailable, freshCredentials.Error, _store.ReadFromCli()?.SubscriptionType);
+            return UsageSnapshot.ForState(Id, DisplayName, ProviderStatus.Unavailable, freshCredentials.Error, _store.ReadFromCli()?.SubscriptionType)
+                with
+            { LoginRenewable = freshCredentials.Renewable };
         }
         // Tag every result with the login's account so the tray cache can't show one account's usage for another.
         return FetchFor(freshCredentials) with { AccountKey = _store.AccountKey(freshCredentials.Credentials) };
@@ -79,7 +81,10 @@ public sealed class ClaudeProvider : IProvider
             ClaudeTokenResult claudeTokenResult = _tokenManager.ForceRefresh();
             if ((object)claudeTokenResult.Credentials == null)
             {
-                return UsageSnapshot.ForState(Id, DisplayName, ProviderStatus.Unavailable, claudeTokenResult.Error ?? ex.Message, subscriptionType);
+                // The usage endpoint rejected the login; Claude Code renews or replaces a rejected token on start.
+                return UsageSnapshot.ForState(Id, DisplayName, ProviderStatus.Unavailable, claudeTokenResult.Error ?? ex.Message, subscriptionType)
+                    with
+                { LoginRenewable = true };
             }
             try
             {
@@ -88,8 +93,10 @@ public sealed class ClaudeProvider : IProvider
             catch (ClaudeFetchException ex2)
             {
                 Diag.Log($"claude: retry fetch {ex2.Kind}: {ex2.Message}");
-                ProviderStatus status = ((ex2.Kind == ClaudeFetchErrorKind.Unauthorized) ? ProviderStatus.Unavailable : ProviderStatus.Error);
-                return UsageSnapshot.ForState(Id, DisplayName, status, ex2.Message, subscriptionType);
+                bool rejected = ex2.Kind == ClaudeFetchErrorKind.Unauthorized;
+                return UsageSnapshot.ForState(Id, DisplayName, rejected ? ProviderStatus.Unavailable : ProviderStatus.Error, ex2.Message, subscriptionType)
+                    with
+                { LoginRenewable = rejected };
             }
         }
         catch (ClaudeFetchException ex3)

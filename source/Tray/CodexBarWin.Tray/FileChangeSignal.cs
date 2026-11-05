@@ -15,6 +15,10 @@ internal sealed class FileChangeSignal : IDisposable
     private readonly Timer _debounce;
     private readonly TimeSpan _delay;
     private int _disposed;
+    private volatile bool _faulted;
+
+    /// <summary>The watch stopped working (buffer overflow, or the folder was removed); create a new one.</summary>
+    public bool Faulted => _faulted;
 
     private FileChangeSignal(string directory, string fileName, Action changed, TimeSpan delay)
     {
@@ -29,6 +33,8 @@ internal sealed class FileChangeSignal : IDisposable
         _watcher.Created += OnChange;
         // Atomic writers replace the file by renaming a temporary file onto it.
         _watcher.Renamed += OnChange;
+        // A missed change may be the renewed login, so refresh once and ask the owner for a new watch.
+        _watcher.Error += (_, _) => { _faulted = true; OnChange(this, new FileSystemEventArgs(WatcherChangeTypes.Changed, directory, fileName)); };
         _watcher.EnableRaisingEvents = true;
     }
 
