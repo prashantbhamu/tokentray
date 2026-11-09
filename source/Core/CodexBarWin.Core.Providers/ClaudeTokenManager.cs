@@ -26,9 +26,9 @@ internal sealed class ClaudeTokenManager
             // Claude Code's current login is the only authority. It defines the account, so a longer-lived
             // token cached for a previous account can never win, and nothing is copied into a cache.
             var current = _store.ReadFromCli();
-            if (current == null) return new(null, "No reusable local login; run Claude to log in.");
+            if (current == null) return new(null, "No reusable local login; run Claude to log in.", Renewable: true);
             if (!current.HasProfileScope) return new(null, "Login lacks user:profile scope; log in again with Claude.");
-            if (current.ExpiresAt.HasValue && current.ExpiresAt.Value <= DateTimeOffset.UtcNow) return new(null, ExpiredReadOnly);
+            if (current.ExpiresAt.HasValue && current.ExpiresAt.Value <= DateTimeOffset.UtcNow) return new(null, ExpiredReadOnly, Renewable: true);
             return new(current, null);
         }
         var cli = _store.ReadFromCli();

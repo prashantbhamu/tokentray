@@ -249,7 +249,7 @@ internal static class ProviderRiskTests
         Good();
         File.Delete(Path.Combine(cli, ".credentials.json"));
         var signedOut = Cycle();
-        check(!ShowsClaude(signedOut) && signedOut[1].Status == ProviderStatus.Unavailable && WeeklyIconState.FromSnapshots(signedOut).Tooltip.Contains("Claude unavailable"),
+        check(!ShowsClaude(signedOut) && signedOut[1].Status == ProviderStatus.Unavailable && WeeklyIconState.FromSnapshots(signedOut).Tooltip.Contains("Claude login needed"),
             "Sign-out clears Claude from popup data, tray bar and tooltip");
 
         Login("account-a", "a"); Good();

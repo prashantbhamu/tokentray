@@ -13,6 +13,7 @@ internal sealed class PopupForm : Form
 {
     private const int W = 284;
     private readonly Action _onRefresh;
+    private readonly Action? _onRenewClaude;
     private readonly Font _title = new("Segoe UI", 20, FontStyle.Bold, GraphicsUnit.Pixel);
     private readonly Font _header = new("Segoe UI", 18, FontStyle.Bold, GraphicsUnit.Pixel);
     private readonly Font _label = new("Segoe UI", 16, FontStyle.Bold, GraphicsUnit.Pixel);
@@ -20,6 +21,7 @@ internal sealed class PopupForm : Form
     private readonly Font _percent = new("Segoe UI", 15.5f, FontStyle.Bold, GraphicsUnit.Pixel);
     private readonly Font _footer = new("Segoe UI", 12.5f, FontStyle.Regular, GraphicsUnit.Pixel);
     private readonly IconButton _refresh;
+    private readonly Button _renew;
     private readonly ToolTip _tips = new();
     private IReadOnlyList<UsageSnapshot> _snapshots = Array.Empty<UsageSnapshot>();
     private bool _refreshing = true;
@@ -33,9 +35,10 @@ internal sealed class PopupForm : Form
         get { var p = base.CreateParams; p.ExStyle |= 0x80; return p; }
     }
 
-    public PopupForm(Action onRefresh)
+    public PopupForm(Action onRefresh, Action? onRenewClaude = null)
     {
         _onRefresh = onRefresh;
+        _onRenewClaude = onRenewClaude;
         Theme.RefreshWindowsTheme();
         AutoScaleMode = AutoScaleMode.None;
         Text = "TokenTray";
@@ -63,6 +66,20 @@ internal sealed class PopupForm : Form
         _refresh.Click += (_, _) => { if (!_refreshing) _onRefresh(); };
         _tips.SetToolTip(_refresh, "Refresh usage");
         Controls.Add(_refresh);
+        _renew = new Button
+        {
+            Text = "Open Claude Code to renew login",
+            Font = _body,
+            FlatStyle = FlatStyle.Flat,
+            Visible = false,
+            TabStop = true,
+            AccessibleName = "Open Claude Code to renew the Claude login",
+            Cursor = Cursors.Hand,
+            UseVisualStyleBackColor = false
+        };
+        _renew.Click += (_, _) => _onRenewClaude?.Invoke();
+        _tips.SetToolTip(_renew, "Opens Claude Code in a terminal so it can renew its own login. Close the terminal when usage shows again.");
+        Controls.Add(_renew);
         ApplyTheme();
     }
 
@@ -71,6 +88,10 @@ internal sealed class PopupForm : Form
         BackColor = Theme.IsLight ? Color.FromArgb(249, 250, 252) : Color.FromArgb(28, 31, 40);
         _refresh.IconColor = Theme.TextFaint;
         _refresh.FlatAppearance.MouseOverBackColor = Theme.IsLight ? Color.FromArgb(235, 238, 243) : Color.FromArgb(45, 49, 60);
+        _renew.BackColor = Theme.IsLight ? Color.FromArgb(240, 242, 246) : Color.FromArgb(40, 44, 55);
+        _renew.ForeColor = Theme.Text;
+        _renew.FlatAppearance.BorderColor = TrayIconRenderer.ClaudeColor;
+        _renew.FlatAppearance.MouseOverBackColor = Theme.IsLight ? Color.FromArgb(230, 233, 239) : Color.FromArgb(52, 57, 70);
         Invalidate();
     }
     internal void PreviewTheme(bool light) { Theme.Preview(light); ApplyTheme(); }
@@ -142,9 +163,11 @@ internal sealed class PopupForm : Form
     private int LayoutContent(Graphics g, bool draw)
     {
         int y = 20;
+        bool renew = false;
         if (_snapshots.Count == 0)
         {
             if (draw) TextAt(g, _refreshing ? "Loading usage…" : "No usage available", _body, new(22, y + 12, W - 76, 24), Theme.TextDim);
+            else _renew.Visible = false;
             return 84;
         }
         for (int i = 0; i < _snapshots.Count; i++)
@@ -199,9 +222,17 @@ internal sealed class PopupForm : Form
                 int h = Math.Min(88, TextRenderer.MeasureText(message, _body, new Size(W - 40, 0), TextFormatFlags.WordBreak).Height);
                 if (draw) TextAt(g, message, _body, new(20, y, W - 40, h), Theme.StatusColor(s.Status), TextFormatFlags.WordBreak);
                 y += h + 12;
+                if (_onRenewClaude != null && ClaudeRenewal.Applies(s) && !renew)
+                {
+                    // Controls are placed only in the measure pass, never while painting.
+                    if (!draw) _renew.Bounds = new Rectangle(20, y - 4, W - 40, 32);
+                    renew = true;
+                    y += 36;
+                }
             }
             if (i < _snapshots.Count - 1) y += 12;
         }
+        if (!draw) _renew.Visible = renew;
         y += 5;
         if (draw) TextAt(g, _refreshing ? "Refreshing…" : _updated, _footer, new(20, y, W - 40, 22), Theme.TextFaint);
         return y + 28;

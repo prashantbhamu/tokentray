@@ -33,7 +33,12 @@ and never sends your credentials anywhere except the provider's own usage endpoi
 
 - **Claude logins are never refreshed by TokenTray.** Refreshing would rotate the refresh token
   that Claude Code itself relies on and sign the CLI out. When the Claude login expires, the
-  popup says so; opening Claude Code once refreshes it and TokenTray picks it up.
+  popup says so, the Claude tray bar turns gray, and the popup shows **Open Claude Code to renew
+  login**. The button opens the Claude Code CLI in a visible terminal, in an empty folder
+  (`%APPDATA%\CodexBarWin\claude-renew`), and sends no prompt. Claude Code renews its own login;
+  TokenTray watches `.credentials.json` and shows live usage within a few seconds. Then close the
+  terminal. Any login or folder-trust prompt is yours to answer; TokenTray never answers it.
+  Opening the Claude desktop app does not renew the CLI login.
 - **Claude Code's current login is the only source.** Switching or signing out of accounts in
   Claude Code is reflected immediately; TokenTray keeps no copy of the login that could show a
   previous account's usage.
