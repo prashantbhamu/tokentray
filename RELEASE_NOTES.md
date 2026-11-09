@@ -1,4 +1,4 @@
-# TokenTray v1.4.0 (pre-release, for testing before merge)
+# TokenTray v1.4.0
 
 - When the Claude Code login expires or is rejected, the popup shows an **Open Claude Code to
   renew login** button. It opens the Claude Code CLI in a visible terminal so the CLI renews its
